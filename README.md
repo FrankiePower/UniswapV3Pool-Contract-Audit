@@ -23,7 +23,7 @@
 - <a href="#findings"> 3.0 FINDINGS</a>
 
   - <a href="#Qanalysis"> 3.1 Qualitative Analysis</a>
-  - <a href="#summary"> 3.2 Summarys</a>
+  - <a href="#summary"> 3.2 Summary</a>
   - <a href="#recom"> 3.2 Recommendations</a>
 
 - <a href="#conclusion"> 4.0 CONCLUSION</a>
@@ -117,19 +117,17 @@ This contract defines the interface for a Uniswap V3 pool. It provides the neces
 
 This interface, IUniswapV3PoolDeployer, defines a contract that is responsible for deploying Uniswap V3 pools. Its primary purpose is to provide the necessary parameters for pool initialization without requiring them to be hardcoded in the pool contract itself.
 
-Key Points:
+The parameters() function allows the deployer contract to provide the following key parameters to the pool contract:
+factory: The address of the factory contract that created the pool.
+token0: The address of the first token in the pool (sorted lexicographically).
+token1: The address of the second token in the pool.
+fee: The fee charged for swaps within the pool, denominated in hundredths of a bip.
+tickSpacing: The minimum distance between initialized ticks.
 
-    Parameterization: The parameters() function allows the deployer contract to provide the following key parameters to the pool contract:
-        factory: The address of the factory contract that created the pool.
-        token0: The address of the first token in the pool (sorted lexicographically).
-        token1: The address of the second token in the pool.
-        fee: The fee charged for swaps within the pool, denominated in hundredths of a bip.
-        tickSpacing: The minimum distance between initialized ticks.
-
-    Benefits of Parameterization:
-        Flexibility: The deployer contract can dynamically set the pool parameters, allowing for more flexible pool creation.
-        Security: By avoiding hardcoded parameters, the pool contract becomes more secure and less prone to vulnerabilities.
-        Predictable Deployment Addresses: The constant initialization code hash of the pool contract allows for predictable deployment addresses, enabling efficient routing and interaction with the pool.
+Benefits of Parameterization:
+Flexibility: The deployer contract can dynamically set the pool parameters, allowing for more flexible pool creation.
+Security: By avoiding hardcoded parameters, the pool contract becomes more secure and less prone to vulnerabilities.
+Predictable Deployment Addresses: The constant initialization code hash of the pool contract allows for predictable deployment addresses, enabling efficient routing and interaction with the pool.
 
 How it Works:
 
@@ -165,12 +163,13 @@ How it Works:
         Validates the fee level and tick spacing.
         Deploys a new pool contract with the specified parameters.
         Emits a PoolCreated event.
+
     Fee Management: The factory allows the owner to enable new fee levels and their corresponding tick spacings. This provides flexibility in adjusting the fee structure to different market conditions.
+
     Ownership Transfer: The setOwner function allows the current owner to transfer ownership of the factory to another address.
 
-Key Role:
-
 The Uniswap V3 factory plays a crucial role in the overall ecosystem by:
+
 Facilitating the creation of new pools.
 Managing the fee structure.
 Ensuring the security and flexibility of the protocol.
@@ -198,15 +197,13 @@ The IERC20Minimal interface provides a streamlined approach to interacting with 
 
 This interface, IUniswapV3MintCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's mint function.
 
-Key Function:
-
-    uniswapV3MintCallback:
-        This function is called after a successful mint operation.
-        It takes three parameters:
-            amount0Owed: The amount of token0 owed to the pool.
-            amount1Owed: The amount of token1 owed to the pool.
-            data: Any arbitrary data passed through by the caller.
-        The callback contract is responsible for transferring the owed tokens to the pool.
+uniswapV3MintCallback:
+This function is called after a successful mint operation.
+It takes three parameters:
+amount0Owed: The amount of token0 owed to the pool.
+amount1Owed: The amount of token1 owed to the pool.
+data: Any arbitrary data passed through by the caller.
+The callback contract is responsible for transferring the owed tokens to the pool.
 
 Purpose of the Callback:
 
@@ -344,13 +341,6 @@ Key Concepts and Functions:
         It takes into account whether the search should be for the next tick to the left or right of the current tick.
         The function leverages bitwise operations to efficiently find the next set bit in the word.
 
-Why Packed Mappings?
-
-    Storage Efficiency: By packing multiple tick states into a single storage slot, the contract significantly reduces storage costs.
-    Fast Lookups: The bitwise operations used in the nextInitializedTickWithinOneWord function allow for efficient searching of initialized ticks.
-
-Overall, the TickBitmap.sol contract is a fundamental building block for Uniswap V3, enabling efficient management of tick states and optimization of storage costs.
-
 #### Position.sol
 
 This contract, Position.sol, manages positions within a Uniswap V3-like liquidity pool. It defines a Position.Info struct to store information for each user's position and provides functions for retrieving and updating positions.
@@ -416,18 +406,6 @@ By providing reliable historical data, the Oracle contract is essential for vari
 
 This library, FullMath.sol, provides high-precision multiplication and division functions for use in Solidity contracts. It's particularly useful for calculations involving large numbers or situations where intermediate values might overflow the standard 256-bit unsigned integer (uint256) data type in Solidity.
 
-Key Takeaways:
-
-    mulDiv: This function performs high-precision multiplication and division. It takes three arguments:
-        a: The multiplicand (number being multiplied).
-        b: The multiplier (number doing the multiplying).
-        denominator: The divisor (number by which we divide).
-    Overflow Handling: mulDiv handles potential overflows that could occur during the calculation. It ensures accurate results even when the intermediate product of a and b is larger than 256 bits.
-    Algorithm: The function employs a combination of assembly language and mathematical techniques like the Chinese Remainder Theorem to achieve high-precision calculations.
-    Rounding Behavior: mulDiv performs floor division, meaning the result is rounded down towards zero.
-    mulDivRoundingUp: This function provides an alternative to mulDiv that performs ceiling division. It rounds the result up to the nearest whole number.
-    Use Cases: These functions are valuable for financial calculations, price calculations, fee computations, and other scenarios where precise arithmetic on large numbers is crucial.
-
 Benefits:
 
     Accuracy: FullMath.sol ensures accurate calculations even with large numbers, preventing potential errors caused by overflows.
@@ -451,11 +429,6 @@ Potential Use Cases:
     Price calculations: Fixed-point numbers can be useful for representing prices or other quantities that require more precision than integers but don't necessarily need the full range of a floating-point number.
     Fractional calculations: They are helpful for calculations involving fractions where maintaining precise decimal representation might be cumbersome.
 
-Limitations:
-
-    Missing Functionality: The current implementation lacks essential functions for performing arithmetic on fixed-point numbers. Developers would need to implement these functions themselves or use a more comprehensive fixed-point library.
-    Customizable Scaling Factor: While Q128 provides a scaling factor of 2^128, it might not be suitable for all scenarios. Developers might need to adjust the scaling factor based on their specific use case.
-
 Overall, FixedPoint128.sol provides a basic foundation for working with fixed-point numbers in Solidity. However, it requires further development or integration with a more complete fixed-point library for practical use.
 
 #### TransferHelper.sol
@@ -478,21 +451,16 @@ Benefits:
     Customizable Error Message: The TF error message provides a clear indication of a failed transfer, aiding in debugging and troubleshooting.
     Gas Efficiency: Using call instead of higher-level functions like transfer or transferFrom potentially reduces gas costs, as it avoids unnecessary checks within the library.
 
-Limitations:
-
-    Reliance on ERC20 Standard: This library assumes the underlying token contract adheres to the standard ERC20 interface (IERC20Minimal). Deviations from the standard could lead to unexpected behavior.
-    Limited Functionality: TransferHelper only provides a safeTransfer function for basic transfers. Additional functionalities like safeTransferFrom or approval handling might be required in some scenarios and would need to be implemented separately.
-
 Overall, TransferHelper.sol offers a secure and efficient way to transfer ERC20 tokens in Solidity contracts. However, it's important to consider potential limitations and ensure the underlying token contract adheres to the ERC20 standard.
 
 #### TickMath.sol
 
 TickMath.sol is a crucial library for Uniswap V3, providing functions to convert between tick values and sqrt price values.
-Key Concepts:
 
-    Tick: A discrete value representing a price level.
-    Sqrt Price: A fixed-point number representing the square root of the price ratio between two tokens.
-    Q64.96: A fixed-point number format with 64 integer bits and 96 fractional bits.
+Key Concepts:
+Tick: A discrete value representing a price level.
+Sqrt Price: A fixed-point number representing the square root of the price ratio between two tokens.
+Q64.96: A fixed-point number format with 64 integer bits and 96 fractional bits.
 
 Core Functions:
 
@@ -527,8 +495,6 @@ Importance in Uniswap V3:
     Precise Price Control: By using ticks and sqrt prices, Uniswap V3 allows for precise control over price ranges and fee tiers.
     Optimized Performance: The efficient algorithms implemented in this library contribute to the overall performance of the protocol.
 
-By providing these essential functions, TickMath.sol plays a vital role in the core mechanics of Uniswap V3.
-
 #### LiquidityMath.sol
 
 LiquidityMath.sol is a simple library within Uniswap V3 that provides a core function for safely adding or subtracting liquidity from a position.
@@ -547,8 +513,6 @@ The function calculates the new liquidity by adding or subtracting y from x. It 
 Why is this function important?
 
 In Uniswap V3, liquidity can be added or removed from a position at any point in time. This function ensures that these operations are performed safely and accurately, preventing potential issues like loss of funds or incorrect calculations.
-
-In Summary:
 
 The LiquidityMath.sol library is a fundamental building block for Uniswap V3, providing a simple yet crucial function for managing liquidity within positions. By incorporating safety checks, it helps maintain the integrity of the protocol and protects users' funds.
 
@@ -585,8 +549,6 @@ This library is fundamental to the mechanics of Uniswap V3. It enables:
     Precise Price Calculations: Accurate calculations of price changes and fee accruals.
     Efficient Liquidity Provision: Optimized management of liquidity across different price ranges.
     Smooth Price Curves: The use of sqrt prices ensures a smooth and efficient price curve.
-
-By providing these essential mathematical functions, SqrtPriceMath.sol contributes to the overall functionality and efficiency of the Uniswap V3 protocol.
 
 #### SwapMath.sol Explained
 
@@ -638,25 +600,7 @@ This library is essential for the core functionality of Uniswap V3. It ensures a
    - `IUniswapV3SwapCallback.sol`: Defines the callback interface for swaps
    - `IUniswapV3FlashCallback.sol`: Defines the callback interface for flash loans
 
-3. **Libraries**
-   - `NoDelegateCall.sol`: Prevents the use of delegate call to protect against security vulnerabilities
-   - `LowGasSafeMath.sol`: Provides gas-optimized mathematical operations
-   - `SafeCast.sol`: Handles safe casting between different numeric types
-   - `Tick.sol`: Manages the storage and computation of tick-related data
-   - `TickBitmap.sol`: Handles the bitmap representation of active ticks
-   - `Position.sol`: Represents and manages liquidity positions
-   - `Oracle.sol`: Provides functionality for the Uniswap V3 oracle
-   - `FullMath.sol`: Contains complex mathematical operations
-   - `FixedPoint128.sol`: Handles 128-bit fixed-point arithmetic
-   - `TransferHelper.sol`: Facilitates safe token transfers
-   - `TickMath.sol`: Performs calculations related to ticks and prices
-   - `LiquidityMath.sol`: Handles liquidity-related mathematical operations
-   - `SqrtPriceMath.sol`: Provides functions for working with square root prices
-   - `SwapMath.sol`: Encapsulates the logic for executing swaps
-
-These imports provide the necessary interfaces, libraries, and utility functions required for the implementation of the Uniswap V3 pool contract. They cover a wide range of functionalities, from token interactions and mathematical operations to specialized features like tick management and oracle integration.
-
-#### Contract UniswapV3Pool is ........
+#### Contract UniswapV3Pool
 
 ```bash
 contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
@@ -686,47 +630,24 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
     uint128 public immutable override maxLiquidityPerTick;
 ```
 
-This line declares a new Solidity contract named UniswapV3Pool that inherits from the IUniswapV3Pool interface and the NoDelegateCall contract. The IUniswapV3Pool interface defines the core functions and events of the Uniswap V3 pool contract.The NoDelegateCall contract is used to prevent the use of delegate call, a feature in Solidity that can be used to introduce security vulnerabilities.
+Starts by declaring a new Solidity contract named UniswapV3Pool that inherits from the IUniswapV3Pool interface and the NoDelegateCall contract. The IUniswapV3Pool interface defines the core functions and events of the Uniswap V3 pool contract.The NoDelegateCall contract is used to prevent the use of delegate call, a feature in Solidity that can be used to introduce security vulnerabilities.
 
-#### using LowGasSafeMath for uint256;
+#### Using Libraries
 
-This line instructs the Solidity compiler to use the LowGasSafeMath library for all uint256 operations within the contract.The LowGasSafeMath library provides gas-optimized mathematical operations with overflow/underflow checks.
-
-#### using LowGasSafeMath for int256;
-
-Similar to the previous line, this line instructs the use of LowGasSafeMath for all int256 operations.
-
-#### using SafeCast for uint256;
-
-This line allows the use of the SafeCast library's functions for safely casting uint256 values.
-
-#### using SafeCast for int256;
-
-This line allows the use of the SafeCast library's functions for safely casting int256 values.
-
-#### using Tick for mapping(int24 => Tick.Info);
-
-This line associates the Tick library with the mapping of int24 (tick indexes) to Tick.Info structs.
-The Tick library provides functions and utilities for managing tick-related data.
-
-#### using TickBitmap for mapping(int16 => uint256);
-
-This line associates the TickBitmap library with the mapping of int16 (tick index word indexes) to uint256 bitmaps.
-The TickBitmap library helps with efficient storage and manipulation of active ticks.
-
-#### using Position for mapping(bytes32 => Position.Info);
-
-This line associates the Position library with the mapping of bytes32 (position IDs) to Position.Info structs.
-The Position library provides functions for managing liquidity positions.
-
-#### using Position for Position.Info;
-
-This line associates the Position library directly with the Position.Info struct.
-
-##### using Oracle for Oracle.Observation[65535];
-
-This line associates the Oracle library with the Oracle.Observation array of size 65,535.
-The Oracle library contains functions for working with the Uniswap V3 oracle.
+- `NoDelegateCall.sol`: Prevents the use of delegate call to protect against security vulnerabilities
+- `LowGasSafeMath.sol`: Provides gas-optimized mathematical operations
+- `SafeCast.sol`: Handles safe casting between different numeric types
+- `Tick.sol`: Manages the storage and computation of tick-related data
+- `TickBitmap.sol`: Handles the bitmap representation of active ticks
+- `Position.sol`: Represents and manages liquidity positions
+- `Oracle.sol`: Provides functionality for the Uniswap V3 oracle
+- `FullMath.sol`: Contains complex mathematical operations
+- `FixedPoint128.sol`: Handles 128-bit fixed-point arithmetic
+- `TransferHelper.sol`: Facilitates safe token transfers
+- `TickMath.sol`: Performs calculations related to ticks and prices
+- `LiquidityMath.sol`: Handles liquidity-related mathematical operations
+- `SqrtPriceMath.sol`: Provides functions for working with square root prices
+- `SwapMath.sol`: Encapsulates the logic for executing swaps
 
 # State Variables
 
@@ -824,63 +745,51 @@ struct Slot0 {
     }
 ```
 
-1. `struct Slot0 {`
+`struct Slot0 {`
 
-   - This line declares a new Solidity struct called `Slot0` that contains several state variables related to the current state of the Uniswap V3 pool.
+- This line declares a new Solidity struct called `Slot0` that contains several state variables related to the current state of the Uniswap V3 pool.
 
-2. `uint160 sqrtPriceX96;`
+`uint160 sqrtPriceX96;`
 
-   - This variable stores the current square root of the price, represented as a 160-bit fixed-point number with 96 bits of decimal precision.
+- This variable stores the current square root of the price, represented as a 160-bit fixed-point number with 96 bits of decimal precision.
 
-3. `int24 tick;`
+`int24 tick;`
 
-   - This variable stores the current tick index, which represents the current price level of the pool.
+- This variable stores the current tick index, which represents the current price level of the pool.
 
-4. `uint16 observationIndex;`
+`uint16 observationIndex;`
 
-   - This variable stores the index of the most recently updated observation in the `observations` array.
+- This variable stores the index of the most recently updated observation in the `observations` array.
 
-5. `uint16 observationCardinality;`
+`uint16 observationCardinality;`
 
-   - This variable stores the current maximum number of observations that are being stored.
+- This variable stores the current maximum number of observations that are being stored.
 
-6. `uint16 observationCardinalityNext;`
+`uint16 observationCardinalityNext;`
 
-   - This variable stores the next maximum number of observations to be stored, triggered by the `observations.write` function.
+- This variable stores the next maximum number of observations to be stored, triggered by the `observations.write` function.
 
-7. `uint8 feeProtocol;`
+`uint8 feeProtocol;`
 
-   - This variable stores the current protocol fee as a percentage of the swap fee, represented as an integer denominator (1/x)%.
+- This variable stores the current protocol fee as a percentage of the swap fee, represented as an integer denominator (1/x)%.
 
-8. `bool unlocked;`
+`bool unlocked;`
 
-   - This variable indicates whether the pool is currently locked or unlocked, used for reentrancy protection.
+- This variable indicates whether the pool is currently locked or unlocked, used for reentrancy protection.
 
-9. `Slot0 public override slot0;`
+`Slot0 public override slot0;`
 
-   - This line declares a public state variable `slot0` of type `Slot0`, which is marked as an override of the `IUniswapV3PoolState` interface.
+- This line declares a public state variable `slot0` of type `Slot0`, which is marked as an override of the `IUniswapV3PoolState` interface.
 
-10. `uint256 public override feeGrowthGlobal0X128;`
+`uint256 public override feeGrowthGlobal0X128;` - This line declares a public state variable `feeGrowthGlobal0X128` of type `uint256`, which is marked as an override of the `IUniswapV3PoolState` interface. - This variable stores the global accumulated fee growth per unit of liquidity in token0.
 
-    - This line declares a public state variable `feeGrowthGlobal0X128` of type `uint256`, which is marked as an override of the `IUniswapV3PoolState` interface.
-    - This variable stores the global accumulated fee growth per unit of liquidity in token0.
+`uint256 public override feeGrowthGlobal1X128;` - Similar to the previous line, this declares a public state variable `feeGrowthGlobal1X128` of type `uint256`, which is an override of the `IUniswapV3PoolState` interface. - This variable stores the global accumulated fee growth per unit of liquidity in token1.
 
-11. `uint256 public override feeGrowthGlobal1X128;`
+`struct ProtocolFees { uint128 token0; uint128 token1; }` - This line declares a new Solidity struct called `ProtocolFees` that contains two `uint128` variables to store the accumulated protocol fees in token0 and token1.
 
-    - Similar to the previous line, this declares a public state variable `feeGrowthGlobal1X128` of type `uint256`, which is an override of the `IUniswapV3PoolState` interface.
-    - This variable stores the global accumulated fee growth per unit of liquidity in token1.
+`ProtocolFees public override protocolFees;` - This line declares a public state variable `protocolFees` of type `ProtocolFees`, which is marked as an override of the `IUniswapV3PoolState` interface.
 
-12. `struct ProtocolFees { uint128 token0; uint128 token1; }`
-
-    - This line declares a new Solidity struct called `ProtocolFees` that contains two `uint128` variables to store the accumulated protocol fees in token0 and token1.
-
-13. `ProtocolFees public override protocolFees;`
-
-    - This line declares a public state variable `protocolFees` of type `ProtocolFees`, which is marked as an override of the `IUniswapV3PoolState` interface.
-
-14. `uint128 public override liquidity;`
-    - This line declares a public state variable `liquidity` of type `uint128`, which is marked as an override of the `IUniswapV3PoolState` interface.
-    - This variable stores the current total liquidity in the pool.
+`uint128 public override liquidity;` - This line declares a public state variable `liquidity` of type `uint128`, which is marked as an override of the `IUniswapV3PoolState` interface. - This variable stores the current total liquidity in the pool.
 
 The remaining lines declare state variable mappings that are marked as overrides of the `IUniswapV3PoolState` interface, including:
 
@@ -891,8 +800,9 @@ The remaining lines declare state variable mappings that are marked as overrides
 
 Finally, the code block includes two modifiers:
 
-1. `lock()`: A modifier that enforces reentrancy protection and ensures the pool is initialized before allowing access to certain functions.
-2. `onlyFactoryOwner()`: A modifier that restricts access to certain functions to only the owner of the Uniswap V3 factory contract.
+`lock()`: A modifier that enforces reentrancy protection and ensures the pool is initialized before allowing access to certain functions.
+
+`onlyFactoryOwner()`: A modifier that restricts access to certain functions to only the owner of the Uniswap V3 factory contract.
 
 In summary, this code sets up the core state variables and data structures used by the Uniswap V3 pool contract, including the `Slot0` struct, global fee growth variables, protocol fee tracking, liquidity, and various mappings for ticks, positions, and observations.
 
@@ -908,18 +818,18 @@ In summary, this code sets up the core state variables and data structures used 
     }
 ```
 
-1. `constructor() {`: This is the constructor function of the contract, which is called when the contract is deployed.
+`constructor() {`: This is the constructor function of the contract, which is called when the contract is deployed.
 
-2. `int24 _tickSpacing;`: This declares a local variable `_tickSpacing` of type `int24`. This will be used to store the tick spacing value.
+`int24 _tickSpacing;`: This declares a local variable `_tickSpacing` of type `int24`. This will be used to store the tick spacing value.
 
-3. `(factory, token0, token1, fee, _tickSpacing) = IUniswapV3PoolDeployer(msg.sender).parameters();`: This line calls the `parameters()` function of the `IUniswapV3PoolDeployer` contract, passing `msg.sender` as the argument. The return values of this function call are then assigned to the local variables `factory`, `token0`, `token1`, `fee`, and `_tickSpacing`.
+`(factory, token0, token1, fee, _tickSpacing) = IUniswapV3PoolDeployer(msg.sender).parameters();`: This line calls the `parameters()` function of the `IUniswapV3PoolDeployer` contract, passing `msg.sender` as the argument. The return values of this function call are then assigned to the local variables `factory`, `token0`, `token1`, `fee`, and `_tickSpacing`.
 
-   - `IUniswapV3PoolDeployer(msg.sender)`: This casts the `msg.sender` address to the `IUniswapV3PoolDeployer` interface, which is likely an interface for a contract that deploys Uniswap V3 pools.
-   - `.parameters()`: This calls the `parameters()` function on the `IUniswapV3PoolDeployer` contract, which likely returns the factory address, the two token addresses, the fee, and the tick spacing.
+- `IUniswapV3PoolDeployer(msg.sender)`: This casts the `msg.sender` address to the `IUniswapV3PoolDeployer` interface, which is likely an interface for a contract that deploys Uniswap V3 pools.
+- `.parameters()`: This calls the `parameters()` function on the `IUniswapV3PoolDeployer` contract, which likely returns the factory address, the two token addresses, the fee, and the tick spacing.
 
-4. `tickSpacing = _tickSpacing;`: This line assigns the `_tickSpacing` value to the `tickSpacing` state variable of the contract.
+`tickSpacing = _tickSpacing;`: This line assigns the `_tickSpacing` value to the `tickSpacing` state variable of the contract.
 
-5. `maxLiquidityPerTick = Tick.tickSpacingToMaxLiquidityPerTick(_tickSpacing);`: This line calculates the maximum liquidity per tick based on the `_tickSpacing` value, and assigns the result to the `maxLiquidityPerTick` state variable. The `Tick.tickSpacingToMaxLiquidityPerTick()` function is likely a helper function that performs this calculation.
+`maxLiquidityPerTick = Tick.tickSpacingToMaxLiquidityPerTick(_tickSpacing);`: This line calculates the maximum liquidity per tick based on the `_tickSpacing` value, and assigns the result to the `maxLiquidityPerTick` state variable. The `Tick.tickSpacingToMaxLiquidityPerTick()` function is likely a helper function that performs this calculation.
 
 # Functions
 
@@ -933,13 +843,13 @@ In summary, this code sets up the core state variables and data structures used 
     }
 ```
 
-1. `function checkTicks(int24 tickLower, int24 tickUpper) private pure {`: This is a private function called `checkTicks` that takes two `int24` parameters, `tickLower` and `tickUpper`. It performs some checks on these tick values.
+`function checkTicks(int24 tickLower, int24 tickUpper) private pure {`: This is a private function called `checkTicks` that takes two `int24` parameters, `tickLower` and `tickUpper`. It performs some checks on these tick values.
 
-2. `require(tickLower < tickUpper, 'TLU');`: This line checks that the `tickLower` value is less than the `tickUpper` value. If this condition is not met, it throws a revert error with the message `'TLU'`.
+`require(tickLower < tickUpper, 'TLU');`: This line checks that the `tickLower` value is less than the `tickUpper` value. If this condition is not met, it throws a revert error with the message `'TLU'`.
 
-3. `require(tickLower >= TickMath.MIN_TICK, 'TLM');`: This line checks that the `tickLower` value is greater than or equal to the `TickMath.MIN_TICK` value. If this condition is not met, it throws a revert error with the message `'TLM'`.
+`require(tickLower >= TickMath.MIN_TICK, 'TLM');`: This line checks that the `tickLower` value is greater than or equal to the `TickMath.MIN_TICK` value. If this condition is not met, it throws a revert error with the message `'TLM'`.
 
-4. `require(tickUpper <= TickMath.MAX_TICK, 'TUM');`: This line checks that the `tickUpper` value is less than or equal to the `TickMath.MAX_TICK` value. If this condition is not met, it throws a revert error with the message `'TUM'`.
+`require(tickUpper <= TickMath.MAX_TICK, 'TUM');`: This line checks that the `tickUpper` value is less than or equal to the `TickMath.MAX_TICK` value. If this condition is not met, it throws a revert error with the message `'TUM'`.
 
 #### function blockTimestamp():
 
@@ -2358,3 +2268,45 @@ Key points:
 - **Event emission**: An event (`CollectProtocol`) is emitted to log the transfer details, providing transparency and enabling off-chain tracking of the fee collection.
 
 In essence, this function is a mechanism for the factory owner to collect protocol fees and transfer them to a recipient while ensuring that gas costs are minimized and the contract's state remains consistent.
+
+## <h2 id="findings">3.0 FINDINGS </h2>
+
+Packed Mappings Why?
+
+    Storage Efficiency: By packing multiple tick states into a single storage slot, the contract significantly reduces storage costs.
+    Fast Lookups: The bitwise operations used in the nextInitializedTickWithinOneWord function allow for efficient searching of initialized ticks.the TickBitmap.sol contract is a fundamental building block for Uniswap V3, enabling efficient management of tick states and optimization of storage costs.
+
+Limitations:
+
+    Missing Functionality: The current implementation lacks essential functions for performing arithmetic on fixed-point numbers. Developers would need to implement these functions themselves or use a more comprehensive fixed-point library.
+
+    Customizable Scaling Factor: While Q128 provides a scaling factor of 2^128, it might not be suitable for all scenarios. Developers might need to adjust the scaling factor based on their specific use case.
+
+    Reliance on ERC20 Standard: This library assumes the underlying token contract adheres to the standard ERC20 interface (IERC20Minimal). Deviations from the standard could lead to unexpected behavior.
+    Limited Functionality: TransferHelper only provides a safeTransfer function for basic transfers. Additional functionalities like safeTransferFrom or approval handling might be required in some scenarios and would need to be implemented separately.
+
+### <h3 id="Qanalysis"> 3.1 Qualitative Analysis<h3>
+
+| Metric          | Rating    | Comment                                    |
+| :-------------- | :-------- | :----------------------------------------- |
+| Code Complexity | Excellent | Functionality is very simple and organized |
+| Documentation   | Excellent | Documentation is excellent                 |
+| Best Practices  | Excellent | Most best practices were implemented.      |
+
+### <h3 id="summary">3.2 Summary<h3>
+
+In summary, the Uniswap V3 Pool contract is a well-structured and efficient implementation of a decentralized exchange (DEX) liquidity pool, designed to provide liquidity for token pairs with enhanced flexibility and efficiency. It includes key features such as concentrated liquidity, customizable fee tiers, and dynamic fee protocol management, allowing liquidity providers to optimize their capital efficiency and control their exposure to specific price ranges. The contract employs multiple safety mechanisms, including reentrancy guards, access control (via factory ownership), and proper validation checks to ensure that only authorized actors can execute sensitive operations like setting fees and collecting protocol fees. Additionally, the contract emits events to provide transparency and track important state changes, such as fee adjustments and liquidity movements.
+
+The Uniswap V3 Pool also utilizes gas optimization techniques, like avoiding unnecessary state changes, to enhance performance. The smart contract's modular design allows for easy upgrades and integration with other DeFi protocols. However, like any complex system, continuous monitoring, regular audits, and performance optimizations are essential to maintain security, efficiency, and reliability over time.
+
+### <h3 id="recom">3.2 Recommendations<h3>
+
+## <h2 id="conclusion">4.0 CONCLUSION </h2>
+
+In this audit, I have thoroughly examined the Uniswap V3 Pool smart contract, focusing on its design and implementation. The Uniswap V3 Pool plays a pivotal role in providing liquidity and facilitating decentralized trading within the Uniswap ecosystem. It incorporates advanced features such as concentrated liquidity, multiple fee tiers, and customizable fee protocols, allowing liquidity providers to optimize their capital efficiency and trading strategies.
+
+The contract is well-organized, following best practices in Solidity development and implementing critical safety features such as access control, reentrancy guards, and validation checks. These mechanisms help ensure the integrity of the liquidity pool and protect against unauthorized actions and potential vulnerabilities. The contract’s use of gas optimization techniques and event logging further contributes to its performance and transparency.
+
+However, as with any complex DeFi protocol, continued testing, auditing, and monitoring are essential to ensure its long-term security and efficiency. Regular upgrades and optimizations can help address emerging challenges and keep the contract in line with evolving best practices and blockchain technology standards.
+
+Overall, the Uniswap V3 Pool contract represents a strong and flexible solution for decentralized liquidity provision and token swapping. Its design principles and implementation contribute significantly to the broader DeFi ecosystem. By maintaining a focus on security and performance, it can continue to serve as a reliable foundation for decentralized finance applications.

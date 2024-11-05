@@ -666,3 +666,1265 @@ How it Works:
     Token Repayment: The borrower's contract must transfer the borrowed tokens plus the fees back to the pool.
 
 By using this callback mechanism, Uniswap V3 enables users to borrow tokens for a short period without requiring collateral. However, it ensures that the borrowed funds are returned promptly, mitigating risks for the protocol.
+
+## <h2 id="review"> 2.0 CONTRACT REVIEW <h2>
+
+1. **Solidity Version**
+
+   - `pragma solidity =0.7.6;`
+   - Specifies the Solidity version that the contract is compatible with (0.7.6)
+
+2. **Interfaces**
+
+   - `IUniswapV3Pool.sol`: Defines the core functions of the Uniswap V3 pool contract
+   - `IUniswapV3PoolDeployer.sol`: Specifies the interface for the pool deployment process
+   - `IUniswapV3Factory.sol`: Defines the interface for the Uniswap V3 factory contract
+   - `IERC20Minimal.sol`: Provides a minimal ERC20 token interface
+   - `IUniswapV3MintCallback.sol`: Defines the callback interface for minting liquidity
+   - `IUniswapV3SwapCallback.sol`: Defines the callback interface for swaps
+   - `IUniswapV3FlashCallback.sol`: Defines the callback interface for flash loans
+
+3. **Libraries**
+   - `NoDelegateCall.sol`: Prevents the use of delegate call to protect against security vulnerabilities
+   - `LowGasSafeMath.sol`: Provides gas-optimized mathematical operations
+   - `SafeCast.sol`: Handles safe casting between different numeric types
+   - `Tick.sol`: Manages the storage and computation of tick-related data
+   - `TickBitmap.sol`: Handles the bitmap representation of active ticks
+   - `Position.sol`: Represents and manages liquidity positions
+   - `Oracle.sol`: Provides functionality for the Uniswap V3 oracle
+   - `FullMath.sol`: Contains complex mathematical operations
+   - `FixedPoint128.sol`: Handles 128-bit fixed-point arithmetic
+   - `TransferHelper.sol`: Facilitates safe token transfers
+   - `TickMath.sol`: Performs calculations related to ticks and prices
+   - `LiquidityMath.sol`: Handles liquidity-related mathematical operations
+   - `SqrtPriceMath.sol`: Provides functions for working with square root prices
+   - `SwapMath.sol`: Encapsulates the logic for executing swaps
+
+These imports provide the necessary interfaces, libraries, and utility functions required for the implementation of the Uniswap V3 pool contract. They cover a wide range of functionalities, from token interactions and mathematical operations to specialized features like tick management and oracle integration.
+
+#### contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
+
+This line declares a new Solidity contract named UniswapV3Pool that inherits from the IUniswapV3Pool interface and the NoDelegateCall contract.
+The IUniswapV3Pool interface defines the core functions and events of the Uniswap V3 pool contract.
+The NoDelegateCall contract is used to prevent the use of delegate call, a feature in Solidity that can be used to introduce security vulnerabilities.
+
+using LowGasSafeMath for uint256;
+
+This line instructs the Solidity compiler to use the LowGasSafeMath library for all uint256 operations within the contract.
+The LowGasSafeMath library provides gas-optimized mathematical operations with overflow/underflow checks.
+
+using LowGasSafeMath for int256;
+
+Similar to the previous line, this line instructs the use of LowGasSafeMath for all int256 operations.
+
+using SafeCast for uint256;
+
+This line allows the use of the SafeCast library's functions for safely casting uint256 values.
+
+using SafeCast for int256;
+
+This line allows the use of the SafeCast library's functions for safely casting int256 values.
+
+using Tick for mapping(int24 => Tick.Info);
+
+This line associates the Tick library with the mapping of int24 (tick indexes) to Tick.Info structs.
+The Tick library provides functions and utilities for managing tick-related data.
+
+using TickBitmap for mapping(int16 => uint256);
+
+This line associates the TickBitmap library with the mapping of int16 (tick index word indexes) to uint256 bitmaps.
+The TickBitmap library helps with efficient storage and manipulation of active ticks.
+
+using Position for mapping(bytes32 => Position.Info);
+
+This line associates the Position library with the mapping of bytes32 (position IDs) to Position.Info structs.
+The Position library provides functions for managing liquidity positions.
+
+using Position for Position.Info;
+
+This line associates the Position library directly with the Position.Info struct.
+
+using Oracle for Oracle.Observation[65535];
+
+This line associates the Oracle library with the Oracle.Observation array of size 65,535.
+The Oracle library contains functions for working with the Uniswap V3 oracle.
+
+/// @inheritdoc IUniswapV3PoolImmutables
+address public immutable override factory;
+
+This line declares an immutable (non-modifiable) public state variable factory that inherits the documentation from the IUniswapV3PoolImmutables interface.
+The factory variable stores the address of the Uniswap V3 factory contract.
+
+/// @inheritdoc IUniswapV3PoolImmutables
+address public immutable override token0;
+address public immutable override token1;
+
+These lines declare immutable public state variables token0 and token1 that store the addresses of the two tokens in the pool.
+
+/// @inheritdoc IUniswapV3PoolImmutables
+uint24 public immutable override fee;
+
+This line declares an immutable public state variable fee that stores the fee tier of the pool.
+
+/// @inheritdoc IUniswapV3PoolImmutables
+int24 public immutable override tickSpacing;
+
+This line declares an immutable public state variable tickSpacing that stores the tick spacing of the pool.
+
+/// @inheritdoc IUniswapV3PoolImmutables
+uint128 public immutable override maxLiquidityPerTick;
+
+This line declares an immutable public state variable maxLiquidityPerTick that stores the maximum amount of liquidity that can be added to a single tick.
+
+In summary, this code block sets up the contract structure, imports the necessary libraries and interfaces, and declares the immutable state variables that define the key characteristics of the Uniswap V3 pool. These variables are set during the pool deployment and cannot be changed afterwards.
+
+Certainly, let's go through the code block for the `Slot0` struct and the associated state variables:
+
+1. `struct Slot0 {`
+
+   - This line declares a new Solidity struct called `Slot0` that contains several state variables related to the current state of the Uniswap V3 pool.
+
+2. `uint160 sqrtPriceX96;`
+
+   - This variable stores the current square root of the price, represented as a 160-bit fixed-point number with 96 bits of decimal precision.
+
+3. `int24 tick;`
+
+   - This variable stores the current tick index, which represents the current price level of the pool.
+
+4. `uint16 observationIndex;`
+
+   - This variable stores the index of the most recently updated observation in the `observations` array.
+
+5. `uint16 observationCardinality;`
+
+   - This variable stores the current maximum number of observations that are being stored.
+
+6. `uint16 observationCardinalityNext;`
+
+   - This variable stores the next maximum number of observations to be stored, triggered by the `observations.write` function.
+
+7. `uint8 feeProtocol;`
+
+   - This variable stores the current protocol fee as a percentage of the swap fee, represented as an integer denominator (1/x)%.
+
+8. `bool unlocked;`
+
+   - This variable indicates whether the pool is currently locked or unlocked, used for reentrancy protection.
+
+9. `Slot0 public override slot0;`
+
+   - This line declares a public state variable `slot0` of type `Slot0`, which is marked as an override of the `IUniswapV3PoolState` interface.
+
+10. `uint256 public override feeGrowthGlobal0X128;`
+
+    - This line declares a public state variable `feeGrowthGlobal0X128` of type `uint256`, which is marked as an override of the `IUniswapV3PoolState` interface.
+    - This variable stores the global accumulated fee growth per unit of liquidity in token0.
+
+11. `uint256 public override feeGrowthGlobal1X128;`
+
+    - Similar to the previous line, this declares a public state variable `feeGrowthGlobal1X128` of type `uint256`, which is an override of the `IUniswapV3PoolState` interface.
+    - This variable stores the global accumulated fee growth per unit of liquidity in token1.
+
+12. `struct ProtocolFees { uint128 token0; uint128 token1; }`
+
+    - This line declares a new Solidity struct called `ProtocolFees` that contains two `uint128` variables to store the accumulated protocol fees in token0 and token1.
+
+13. `ProtocolFees public override protocolFees;`
+
+    - This line declares a public state variable `protocolFees` of type `ProtocolFees`, which is marked as an override of the `IUniswapV3PoolState` interface.
+
+14. `uint128 public override liquidity;`
+    - This line declares a public state variable `liquidity` of type `uint128`, which is marked as an override of the `IUniswapV3PoolState` interface.
+    - This variable stores the current total liquidity in the pool.
+
+The remaining lines declare state variable mappings that are marked as overrides of the `IUniswapV3PoolState` interface, including:
+
+- `ticks`: A mapping of tick indexes to `Tick.Info` structs
+- `tickBitmap`: A mapping of tick index word indexes to bitmaps
+- `positions`: A mapping of position IDs to `Position.Info` structs
+- `observations`: An array of `Oracle.Observation` structs
+
+Finally, the code block includes two modifiers:
+
+1. `lock()`: A modifier that enforces reentrancy protection and ensures the pool is initialized before allowing access to certain functions.
+2. `onlyFactoryOwner()`: A modifier that restricts access to certain functions to only the owner of the Uniswap V3 factory contract.
+
+In summary, this code sets up the core state variables and data structures used by the Uniswap V3 pool contract, including the `Slot0` struct, global fee growth variables, protocol fee tracking, liquidity, and various mappings for ticks, positions, and observations.
+
+Okay, let's go through this code step-by-step:
+
+1. `constructor() {`: This is the constructor function of the contract, which is called when the contract is deployed.
+
+2. `int24 _tickSpacing;`: This declares a local variable `_tickSpacing` of type `int24`. This will be used to store the tick spacing value.
+
+3. `(factory, token0, token1, fee, _tickSpacing) = IUniswapV3PoolDeployer(msg.sender).parameters();`: This line calls the `parameters()` function of the `IUniswapV3PoolDeployer` contract, passing `msg.sender` as the argument. The return values of this function call are then assigned to the local variables `factory`, `token0`, `token1`, `fee`, and `_tickSpacing`.
+
+   - `IUniswapV3PoolDeployer(msg.sender)`: This casts the `msg.sender` address to the `IUniswapV3PoolDeployer` interface, which is likely an interface for a contract that deploys Uniswap V3 pools.
+   - `.parameters()`: This calls the `parameters()` function on the `IUniswapV3PoolDeployer` contract, which likely returns the factory address, the two token addresses, the fee, and the tick spacing.
+
+4. `tickSpacing = _tickSpacing;`: This line assigns the `_tickSpacing` value to the `tickSpacing` state variable of the contract.
+
+5. `maxLiquidityPerTick = Tick.tickSpacingToMaxLiquidityPerTick(_tickSpacing);`: This line calculates the maximum liquidity per tick based on the `_tickSpacing` value, and assigns the result to the `maxLiquidityPerTick` state variable. The `Tick.tickSpacingToMaxLiquidityPerTick()` function is likely a helper function that performs this calculation.
+
+In summary, this constructor code initializes the contract with important parameters related to the Uniswap V3 pool, such as the factory address, token addresses, fee, tick spacing, and the maximum liquidity per tick. These values are used throughout the contract's functionality.
+
+Certainly, let's go through the code step by step:
+
+1. `function checkTicks(int24 tickLower, int24 tickUpper) private pure {`: This is a private function called `checkTicks` that takes two `int24` parameters, `tickLower` and `tickUpper`. It performs some checks on these tick values.
+
+2. `require(tickLower < tickUpper, 'TLU');`: This line checks that the `tickLower` value is less than the `tickUpper` value. If this condition is not met, it throws a revert error with the message `'TLU'`.
+
+3. `require(tickLower >= TickMath.MIN_TICK, 'TLM');`: This line checks that the `tickLower` value is greater than or equal to the `TickMath.MIN_TICK` value. If this condition is not met, it throws a revert error with the message `'TLM'`.
+
+4. `require(tickUpper <= TickMath.MAX_TICK, 'TUM');`: This line checks that the `tickUpper` value is less than or equal to the `TickMath.MAX_TICK` value. If this condition is not met, it throws a revert error with the message `'TUM'`.
+
+5. `function _blockTimestamp() internal view virtual returns (uint32) {`: This is a virtual function that returns the current block timestamp, truncated to 32 bits. It is marked as `internal` and `view`, meaning it can be called internally within the contract and does not modify the contract state.
+
+6. `return uint32(block.timestamp); // truncation is desired`: This line returns the current block timestamp, converted to a `uint32` value. The comment indicates that the truncation to 32 bits is intentional.
+
+7. `function balance0() private view returns (uint256) {`: This is a private function that retrieves the pool's balance of the first token (`token0`).
+
+8. `(bool success, bytes memory data) = token0.staticcall(abi.encodeWithSelector(IERC20Minimal.balanceOf.selector, address(this)));`: This line uses the `staticcall` function to call the `balanceOf` function of the `IERC20Minimal` interface on the `token0` contract, passing `address(this)` as the argument (which represents the current contract address). The result of the call is stored in the `success` and `data` variables.
+
+9. `require(success && data.length >= 32);`: This line checks that the call to `balanceOf` was successful and that the returned data has a length of at least 32 bytes.
+
+10. `return abi.decode(data, (uint256));`: This line decodes the returned data using the `abi.decode` function and returns the decoded `uint256` value, which represents the pool's balance of `token0`.
+
+11. `function balance1() private view returns (uint256) {`: This function is similar to `balance0()`, but it retrieves the pool's balance of the second token (`token1`).
+
+12. `function snapshotCumulativesInside(int24 tickLower, int24 tickUpper) external view override noDelegateCall returns (int56 tickCumulativeInside, uint160 secondsPerLiquidityInsideX128, uint32 secondsInside) {`: This is an external view function that takes two `int24` parameters, `tickLower` and `tickUpper`, and returns three values: `tickCumulativeInside`, `secondsPerLiquidityInsideX128`, and `secondsInside`.
+
+13. `checkTicks(tickLower, tickUpper);`: This line calls the `checkTicks` function to verify that the `tickLower` and `tickUpper` values are valid.
+
+14. The function then retrieves various values from the `ticks` mapping, such as `tickCumulativeLower`, `secondsPerLiquidityOutsideLowerX128`, `secondsOutsideLower`, `tickCumulativeUpper`, `secondsPerLiquidityOutsideUpperX128`, and `secondsOutsideUpper`.
+
+15. It also retrieves the current `slot0` struct, which contains information about the current state of the pool.
+
+16. The function then performs a series of checks and calculations to determine the `tickCumulativeInside`, `secondsPerLiquidityInsideX128`, and `secondsInside` values, based on the current state of the pool and the provided `tickLower` and `tickUpper` values.
+
+17. `function observe(uint32[] calldata secondsAgos) external view override noDelegateCall returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s) {`: This is an external view function that takes an array of `uint32` values representing the number of seconds ago to observe, and returns two arrays: `tickCumulatives` and `secondsPerLiquidityCumulativeX128s`.
+
+18. `return observations.observe(
+    _blockTimestamp(),
+    secondsAgos,
+    slot0.tick,
+    slot0.observationIndex,
+    liquidity,
+    slot0.observationCardinality
+);`: This line calls the `observe` function of the `observations` contract, passing in various parameters related to the current state of the pool, and returns the result.
+
+19. The remaining functions, `increaseObservationCardinalityNext` and `initialize`, handle the initialization and updating of the pool's observation data, which is used for various calculations and state tracking.
+
+Overall, this code is responsible for managing the core functionality of the Uniswap V3 pool contract, including calculating various cumulative values, retrieving token balances, and initializing the pool's state.
+
+This is the `_modifyPosition` function, which is responsible for making changes to a position in the Uniswap V3 pool. Let's go through it step by step:
+
+1. `struct ModifyPositionParams {`: This defines a data structure that holds the details of the position change, including the owner's address, the lower and upper ticks of the position, and the change in liquidity.
+
+2. `function _modifyPosition(ModifyPositionParams memory params) private noDelegateCall returns (Position.Info storage position, int256 amount0, int256 amount1) {`: This is the function definition for `_modifyPosition`. It takes a `ModifyPositionParams` struct as input and returns three values: a storage pointer to the updated position, the amount of token0 owed to the pool, and the amount of token1 owed to the pool.
+
+3. `checkTicks(params.tickLower, params.tickUpper);`: This line calls the `checkTicks` function to ensure that the provided `tickLower` and `tickUpper` values are valid.
+
+4. `Slot0 memory _slot0 = slot0; // SLOAD for gas optimization`: This line retrieves the current `Slot0` struct (which contains important pool state information) and stores it in a local variable `_slot0` for gas optimization.
+
+5. `position = _updatePosition(params.owner, params.tickLower, params.tickUpper, params.liquidityDelta, _slot0.tick);`: This line calls the `_updatePosition` function to update the position with the provided parameters. The result is stored in the `position` variable.
+
+6. `if (params.liquidityDelta != 0) {`: This block of code is executed if there is a non-zero change in liquidity.
+
+7. `if (_slot0.tick < params.tickLower) {`: This condition checks if the current pool tick is below the lower tick of the position. In this case, the pool needs more token0 (as it's becoming more valuable) and the user must provide it.
+
+   - The amount of token0 required is calculated using the `SqrtPriceMath.getAmount0Delta` function.
+
+8. `else if (_slot0.tick < params.tickUpper) {`: This condition checks if the current pool tick is inside the range of the position.
+
+   - An observation is written to the `observations` contract using the `observations.write` function.
+   - The amounts of token0 and token1 owed to the pool are calculated using the `SqrtPriceMath.getAmount0Delta` and `SqrtPriceMath.getAmount1Delta` functions, respectively.
+   - The pool's liquidity is updated using the `LiquidityMath.addDelta` function.
+
+9. `else {`: This condition checks if the current pool tick is above the upper tick of the position. In this case, the pool needs more token1 (as it's becoming more valuable) and the user must provide it.
+   - The amount of token1 required is calculated using the `SqrtPriceMath.getAmount1Delta` function.
+
+In summary, this function is responsible for updating a position in the Uniswap V3 pool, including calculating the amounts of token0 and token1 owed to the pool based on the change in liquidity and the current pool state.
+
+#### 2.3 updatePosition():
+
+```bash
+function _updatePosition(
+        address owner,
+        int24 tickLower,
+        int24 tickUpper,
+        int128 liquidityDelta,
+        int24 tick
+    ) private returns (Position.Info storage position) {
+        position = positions.get(owner, tickLower, tickUpper);
+
+        uint256 _feeGrowthGlobal0X128 = feeGrowthGlobal0X128; // SLOAD for gas optimization
+        uint256 _feeGrowthGlobal1X128 = feeGrowthGlobal1X128; // SLOAD for gas optimization
+
+        // if we need to update the ticks, do it
+        bool flippedLower;
+        bool flippedUpper;
+        if (liquidityDelta != 0) {
+            uint32 time = _blockTimestamp();
+            (int56 tickCumulative, uint160 secondsPerLiquidityCumulativeX128) =
+                observations.observeSingle(
+                    time,
+                    0,
+                    slot0.tick,
+                    slot0.observationIndex,
+                    liquidity,
+                    slot0.observationCardinality
+                );
+
+            flippedLower = ticks.update(
+                tickLower,
+                tick,
+                liquidityDelta,
+                _feeGrowthGlobal0X128,
+                _feeGrowthGlobal1X128,
+                secondsPerLiquidityCumulativeX128,
+                tickCumulative,
+                time,
+                false,
+                maxLiquidityPerTick
+            );
+            flippedUpper = ticks.update(
+                tickUpper,
+                tick,
+                liquidityDelta,
+                _feeGrowthGlobal0X128,
+                _feeGrowthGlobal1X128,
+                secondsPerLiquidityCumulativeX128,
+                tickCumulative,
+                time,
+                true,
+                maxLiquidityPerTick
+            );
+
+            if (flippedLower) {
+                tickBitmap.flipTick(tickLower, tickSpacing);
+            }
+            if (flippedUpper) {
+                tickBitmap.flipTick(tickUpper, tickSpacing);
+            }
+        }
+
+        (uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128) =
+            ticks.getFeeGrowthInside(tickLower, tickUpper, tick, _feeGrowthGlobal0X128, _feeGrowthGlobal1X128);
+
+        position.update(liquidityDelta, feeGrowthInside0X128, feeGrowthInside1X128);
+
+        // clear any tick data that is no longer needed
+        if (liquidityDelta < 0) {
+            if (flippedLower) {
+                ticks.clear(tickLower);
+            }
+            if (flippedUpper) {
+                ticks.clear(tickUpper);
+            }
+        }
+    }
+
+```
+
+This function, `_updatePosition`, is responsible for updating a position in the Uniswap V3 pool. Let's go through it step by step:
+
+1. `function _updatePosition(address owner, int24 tickLower, int24 tickUpper, int128 liquidityDelta, int24 tick) private returns (Position.Info storage position) {`: This is the function definition. It takes the following parameters:
+
+   - `owner`: The address of the owner of the position
+   - `tickLower`: The lower tick of the position
+   - `tickUpper`: The upper tick of the position
+   - `liquidityDelta`: The change in liquidity for the position
+   - `tick`: The current pool tick
+
+2. `position = positions.get(owner, tickLower, tickUpper);`: This line retrieves the position information from the `positions` mapping, using the provided `owner`, `tickLower`, and `tickUpper` values.
+
+3. `uint256 _feeGrowthGlobal0X128 = feeGrowthGlobal0X128; // SLOAD for gas optimization`: This line loads the `feeGrowthGlobal0X128` and `feeGrowthGlobal1X128` state variables into local variables for gas optimization.
+
+4. `if (liquidityDelta != 0) {`: This block of code is executed if there is a non-zero change in liquidity.
+
+   - `uint32 time = _blockTimestamp();`: This line retrieves the current block timestamp.
+   - `(int56 tickCumulative, uint160 secondsPerLiquidityCumulativeX128) = observations.observeSingle(time, 0, slot0.tick, slot0.observationIndex, liquidity, slot0.observationCardinality);`: This line calls the `observeSingle` function of the `observations` contract to retrieve certain cumulative values.
+   - `flippedLower = ticks.update(tickLower, tick, liquidityDelta, _feeGrowthGlobal0X128, _feeGrowthGlobal1X128, secondsPerLiquidityCumulativeX128, tickCumulative, time, false, maxLiquidityPerTick);`: This line calls the `update` function of the `ticks` contract to update the lower tick, passing in various parameters including the liquidity delta and the cumulative values retrieved earlier.
+   - `flippedUpper = ticks.update(tickUpper, tick, liquidityDelta, _feeGrowthGlobal0X128, _feeGrowthGlobal1X128, secondsPerLiquidityCumulativeX128, tickCumulative, time, true, maxLiquidityPerTick);`: This line is similar to the previous one, but it updates the upper tick.
+   - `if (flippedLower) { tickBitmap.flipTick(tickLower, tickSpacing); }`: If the lower tick was flipped, this line updates the `tickBitmap`.
+   - `if (flippedUpper) { tickBitmap.flipTick(tickUpper, tickSpacing); }`: If the upper tick was flipped, this line updates the `tickBitmap`.
+
+5. `(uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128) = ticks.getFeeGrowthInside(tickLower, tickUpper, tick, *feeGrowthGlobal0X128, *feeGrowthGlobal1X128);`: This line calls the `getFeeGrowthInside` function of the `ticks` contract to retrieve the fee growth inside the position's tick range.
+
+6. `position.update(liquidityDelta, feeGrowthInside0X128, feeGrowthInside1X128);`: This line updates the position's liquidity, fee growth in token0, and fee growth in token1.
+
+7. `if (liquidityDelta < 0) { ... }`: This block of code is executed if the liquidity delta is negative (i.e., the liquidity is being removed from the position).
+   - If the lower or upper tick was flipped, the `ticks.clear` function is called to clear any tick data that is no longer needed.
+
+In summary, this function is responsible for updating a position in the Uniswap V3 pool, including updating the tick data, the fee growth inside the position's tick range, and the position's liquidity and fee growth values.
+
+#### 2.4 mint():
+
+```bash
+ function mint(
+        address recipient,
+        int24 tickLower,
+        int24 tickUpper,
+        uint128 amount,
+        bytes calldata data
+    ) external override lock returns (uint256 amount0, uint256 amount1) {
+        require(amount > 0);
+        (, int256 amount0Int, int256 amount1Int) =
+            _modifyPosition(
+                ModifyPositionParams({
+                    owner: recipient,
+                    tickLower: tickLower,
+                    tickUpper: tickUpper,
+                    liquidityDelta: int256(amount).toInt128()
+                })
+            );
+
+        amount0 = uint256(amount0Int);
+        amount1 = uint256(amount1Int);
+
+        uint256 balance0Before;
+        uint256 balance1Before;
+        if (amount0 > 0) balance0Before = balance0();
+        if (amount1 > 0) balance1Before = balance1();
+        IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, data);
+        if (amount0 > 0) require(balance0Before.add(amount0) <= balance0(), 'M0');
+        if (amount1 > 0) require(balance1Before.add(amount1) <= balance1(), 'M1');
+
+        emit Mint(msg.sender, recipient, tickLower, tickUpper, amount, amount0, amount1);
+    }
+
+```
+
+This function, `mint`, is responsible for minting a new position in the Uniswap V3 pool. Let's go through it step by step:
+
+1. `function mint(address recipient, int24 tickLower, int24 tickUpper, uint128 amount, bytes calldata data) external override lock returns (uint256 amount0, uint256 amount1) {`: This is the function definition. It takes the following parameters:
+
+   - `recipient`: The address of the recipient of the minted position
+   - `tickLower`: The lower tick of the position
+   - `tickUpper`: The upper tick of the position
+   - `amount`: The amount of liquidity to be minted
+   - `data`: An arbitrary data field that can be used by the caller
+
+2. `require(amount > 0);`: This line ensures that the amount of liquidity to be minted is greater than 0.
+
+3. `(, int256 amount0Int, int256 amount1Int) = _modifyPosition(ModifyPositionParams({ owner: recipient, tickLower: tickLower, tickUpper: tickUpper, liquidityDelta: int256(amount).toInt128() }));`: This line calls the `_modifyPosition` function, passing in a `ModifyPositionParams` struct with the provided parameters. The function returns the amount of token0 and token1 owed to the pool, which are stored in `amount0Int` and `amount1Int`, respectively.
+
+4. `amount0 = uint256(amount0Int);`: This line converts the `amount0Int` value (an `int256`) to a `uint256`.
+5. `amount1 = uint256(amount1Int);`: This line converts the `amount1Int` value (an `int256`) to a `uint256`.
+
+6. `uint256 balance0Before;`: This line declares a local variable `balance0Before` to store the pool's balance of token0 before the callback.
+7. `uint256 balance1Before;`: This line declares a local variable `balance1Before` to store the pool's balance of token1 before the callback.
+
+8. `if (amount0 > 0) balance0Before = balance0();`: If the amount of token0 owed to the pool is greater than 0, this line retrieves the current balance of token0 and stores it in `balance0Before`.
+9. `if (amount1 > 0) balance1Before = balance1();`: If the amount of token1 owed to the pool is greater than 0, this line retrieves the current balance of token1 and stores it in `balance1Before`.
+
+10. `IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, data);`: This line calls the `uniswapV3MintCallback` function on the contract that called the `mint` function (identified by `msg.sender`). This callback allows the caller to provide the required amounts of token0 and token1 to the pool.
+
+11. `if (amount0 > 0) require(balance0Before.add(amount0) <= balance0(), 'M0');`: If the amount of token0 owed to the pool is greater than 0, this line checks that the current balance of token0 is at least the previous balance plus the amount owed. If this condition is not met, it reverts the transaction with the error message `'M0'`.
+12. `if (amount1 > 0) require(balance1Before.add(amount1) <= balance1(), 'M1');`: Similarly, if the amount of token1 owed to the pool is greater than 0, this line checks that the current balance of token1 is at least the previous balance plus the amount owed. If this condition is not met, it reverts the transaction with the error message `'M1'`.
+
+13. `emit Mint(msg.sender, recipient, tickLower, tickUpper, amount, amount0, amount1);`: This line emits a `Mint` event with the relevant details of the minted position.
+
+In summary, this function is responsible for minting a new position in the Uniswap V3 pool. It calls the `_modifyPosition` function to update the position, retrieves the current token balances, calls the `uniswapV3MintCallback` function to allow the caller to provide the required token amounts, and then checks that the token balances have been updated correctly before emitting a `Mint` event.
+
+#### 2.6 collect():
+
+```bash
+function collect(
+        address recipient,
+        int24 tickLower,
+        int24 tickUpper,
+        uint128 amount0Requested,
+        uint128 amount1Requested
+    ) external override lock returns (uint128 amount0, uint128 amount1) {
+        // we don't need to checkTicks here, because invalid positions will never have non-zero tokensOwed{0,1}
+        Position.Info storage position = positions.get(msg.sender, tickLower, tickUpper);
+
+        amount0 = amount0Requested > position.tokensOwed0 ? position.tokensOwed0 : amount0Requested;
+        amount1 = amount1Requested > position.tokensOwed1 ? position.tokensOwed1 : amount1Requested;
+
+        if (amount0 > 0) {
+            position.tokensOwed0 -= amount0;
+            TransferHelper.safeTransfer(token0, recipient, amount0);
+        }
+        if (amount1 > 0) {
+            position.tokensOwed1 -= amount1;
+            TransferHelper.safeTransfer(token1, recipient, amount1);
+        }
+
+        emit Collect(msg.sender, recipient, tickLower, tickUpper, amount0, amount1);
+    }
+```
+
+This function, `collect`, is responsible for collecting the accumulated fees and owed tokens from a position in the Uniswap V3 pool. Let's go through it step by step:
+
+1. `function collect(address recipient, int24 tickLower, int24 tickUpper, uint128 amount0Requested, uint128 amount1Requested) external override lock returns (uint128 amount0, uint128 amount1) {`: This is the function definition. It takes the following parameters:
+
+   - `recipient`: The address of the recipient of the collected tokens
+   - `tickLower`: The lower tick of the position
+   - `tickUpper`: The upper tick of the position
+   - `amount0Requested`: The maximum amount of token0 to collect
+   - `amount1Requested`: The maximum amount of token1 to collect
+
+2. `Position.Info storage position = positions.get(msg.sender, tickLower, tickUpper);`: This line retrieves the position information from the `positions` mapping, using the sender's address and the provided tick range.
+
+3. `amount0 = amount0Requested > position.tokensOwed0 ? position.tokensOwed0 : amount0Requested;`: This line calculates the amount of token0 to collect. It takes the minimum of the requested amount and the amount actually owed to the position.
+4. `amount1 = amount1Requested > position.tokensOwed1 ? position.tokensOwed1 : amount1Requested;`: This line calculates the amount of token1 to collect, similar to the calculation for token0.
+
+5. `if (amount0 > 0) { position.tokensOwed0 -= amount0; TransferHelper.safeTransfer(token0, recipient, amount0); }`: If there is an amount of token0 to collect, this block of code subtracts the collected amount from the position's `tokensOwed0` and transfers the tokens to the recipient using the `TransferHelper.safeTransfer` function.
+6. `if (amount1 > 0) { position.tokensOwed1 -= amount1; TransferHelper.safeTransfer(token1, recipient, amount1); }`: Similarly, if there is an amount of token1 to collect, this block of code subtracts the collected amount from the position's `tokensOwed1` and transfers the tokens to the recipient.
+
+7. `emit Collect(msg.sender, recipient, tickLower, tickUpper, amount0, amount1);`: This line emits a `Collect` event with the details of the collected tokens.
+
+In summary, this function allows the owner of a position to collect the accumulated fees and owed tokens from that position. It retrieves the position information, calculates the amounts of token0 and token1 to collect based on the requested amounts and the actual amounts owed, updates the position's state, and transfers the tokens to the recipient. Finally, it emits a `Collect` event.
+
+#### 2.8 burn():
+
+```bash
+function burn(
+        int24 tickLower,
+        int24 tickUpper,
+        uint128 amount
+    ) external override lock returns (uint256 amount0, uint256 amount1) {
+        (Position.Info storage position, int256 amount0Int, int256 amount1Int) =
+            _modifyPosition(
+                ModifyPositionParams({
+                    owner: msg.sender,
+                    tickLower: tickLower,
+                    tickUpper: tickUpper,
+                    liquidityDelta: -int256(amount).toInt128()
+                })
+            );
+
+        amount0 = uint256(-amount0Int);
+        amount1 = uint256(-amount1Int);
+
+        if (amount0 > 0 || amount1 > 0) {
+            (position.tokensOwed0, position.tokensOwed1) = (
+                position.tokensOwed0 + uint128(amount0),
+                position.tokensOwed1 + uint128(amount1)
+            );
+        }
+
+        emit Burn(msg.sender, tickLower, tickUpper, amount, amount0, amount1);
+    }
+```
+
+This function, `burn`, is responsible for burning (i.e., removing) a portion of a position in the Uniswap V3 pool. Let's go through it step by step:
+
+1. `function burn(int24 tickLower, int24 tickUpper, uint128 amount) external override lock returns (uint256 amount0, uint256 amount1) {`: This is the function definition. It takes the following parameters:
+
+   - `tickLower`: The lower tick of the position
+   - `tickUpper`: The upper tick of the position
+   - `amount`: The amount of liquidity to be burned
+
+2. `(Position.Info storage position, int256 amount0Int, int256 amount1Int) = _modifyPosition(ModifyPositionParams({ owner: msg.sender, tickLower: tickLower, tickUpper: tickUpper, liquidityDelta: -int256(amount).toInt128() }));`: This line calls the `_modifyPosition` function to update the position, passing in a `ModifyPositionParams` struct with the provided parameters and a negative liquidity delta to indicate that liquidity is being removed.
+
+3. `amount0 = uint256(-amount0Int);`: This line converts the negative `amount0Int` value (an `int256`) to a positive `uint256` value.
+4. `amount1 = uint256(-amount1Int);`: This line converts the negative `amount1Int` value (an `int256`) to a positive `uint256` value.
+
+5. `if (amount0 > 0 || amount1 > 0) { (position.tokensOwed0, position.tokensOwed1) = (position.tokensOwed0 + uint128(amount0), position.tokensOwed1 + uint128(amount1)); }`: If either the amount of token0 or token1 owed to the pool is greater than 0, this block of code updates the `tokensOwed0` and `tokensOwed1` values in the position's information.
+
+6. `emit Burn(msg.sender, tickLower, tickUpper, amount, amount0, amount1);`: This line emits a `Burn` event with the details of the burned position.
+
+In summary, this function is responsible for burning (removing) a portion of a position in the Uniswap V3 pool. It calls the `_modifyPosition` function to update the position, calculates the amounts of token0 and token1 owed to the pool, updates the position's state accordingly, and emits a `Burn` event.
+
+#### structs
+
+This code defines several data structures used in the Uniswap V3 swap functionality:
+
+1. `SwapCache`:
+
+   - `feeProtocol`: The protocol fee for the input token.
+   - `liquidityStart`: The liquidity at the beginning of the swap.
+   - `blockTimestamp`: The timestamp of the current block.
+   - `tickCumulative`: The current value of the tick accumulator, computed only if the swap crosses an initialized tick.
+   - `secondsPerLiquidityCumulativeX128`: The current value of the seconds per liquidity accumulator, computed only if the swap crosses an initialized tick.
+   - `computedLatestObservation`: A flag indicating whether the above two accumulators have been computed and cached.
+
+2. `SwapState`:
+
+   - `amountSpecifiedRemaining`: The amount remaining to be swapped in/out of the input/output asset.
+   - `amountCalculated`: The amount already swapped out/in of the output/input asset.
+   - `sqrtPriceX96`: The current square root of the price.
+   - `tick`: The tick associated with the current price.
+   - `feeGrowthGlobalX128`: The global fee growth of the input token.
+   - `protocolFee`: The amount of input token paid as protocol fee.
+   - `liquidity`: The current liquidity in range.
+
+3. `StepComputations`:
+   - `sqrtPriceStartX96`: The price at the beginning of the step.
+   - `tickNext`: The next tick to swap to from the current tick in the swap direction.
+   - `initialized`: Whether `tickNext` is initialized or not.
+   - `sqrtPriceNextX96`: The square root of the price for the next tick (1/0).
+   - `amountIn`: The amount being swapped in during this step.
+   - `amountOut`: The amount being swapped out during this step.
+   - `feeAmount`: The amount of fee being paid in during this step.
+
+These data structures are used to keep track of various state variables and intermediate computations during the process of executing a swap in the Uniswap V3 protocol. The `SwapCache` holds information that is cached for performance optimization, the `SwapState` maintains the overall state of the swap, and the `StepComputations` stores details about each individual step of the swap.
+
+#### SWAP():
+
+```bash
+ function swap(
+        address recipient,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96,
+        bytes calldata data
+    ) external override noDelegateCall returns (int256 amount0, int256 amount1) {
+        require(amountSpecified != 0, 'AS');
+
+        Slot0 memory slot0Start = slot0;
+
+        require(slot0Start.unlocked, 'LOK');
+        require(
+            zeroForOne
+                ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > TickMath.MIN_SQRT_RATIO
+                : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < TickMath.MAX_SQRT_RATIO,
+            'SPL'
+        );
+
+        slot0.unlocked = false;
+
+        SwapCache memory cache =
+            SwapCache({
+                liquidityStart: liquidity,
+                blockTimestamp: _blockTimestamp(),
+                feeProtocol: zeroForOne ? (slot0Start.feeProtocol % 16) : (slot0Start.feeProtocol >> 4),
+                secondsPerLiquidityCumulativeX128: 0,
+                tickCumulative: 0,
+                computedLatestObservation: false
+            });
+
+        bool exactInput = amountSpecified > 0;
+
+        SwapState memory state =
+            SwapState({
+                amountSpecifiedRemaining: amountSpecified,
+                amountCalculated: 0,
+                sqrtPriceX96: slot0Start.sqrtPriceX96,
+                tick: slot0Start.tick,
+                feeGrowthGlobalX128: zeroForOne ? feeGrowthGlobal0X128 : feeGrowthGlobal1X128,
+                protocolFee: 0,
+                liquidity: cache.liquidityStart
+            });
+
+        // continue swapping as long as we haven't used the entire input/output and haven't reached the price limit
+        while (state.amountSpecifiedRemaining != 0 && state.sqrtPriceX96 != sqrtPriceLimitX96) {
+            StepComputations memory step;
+
+            step.sqrtPriceStartX96 = state.sqrtPriceX96;
+
+            (step.tickNext, step.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
+                state.tick,
+                tickSpacing,
+                zeroForOne
+            );
+
+            // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
+            if (step.tickNext < TickMath.MIN_TICK) {
+                step.tickNext = TickMath.MIN_TICK;
+            } else if (step.tickNext > TickMath.MAX_TICK) {
+                step.tickNext = TickMath.MAX_TICK;
+            }
+
+            // get the price for the next tick
+            step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(step.tickNext);
+
+            // compute values to swap to the target tick, price limit, or point where input/output amount is exhausted
+            (state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = SwapMath.computeSwapStep(
+                state.sqrtPriceX96,
+                (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
+                    ? sqrtPriceLimitX96
+                    : step.sqrtPriceNextX96,
+                state.liquidity,
+                state.amountSpecifiedRemaining,
+                fee
+            );
+
+            if (exactInput) {
+                state.amountSpecifiedRemaining -= (step.amountIn + step.feeAmount).toInt256();
+                state.amountCalculated = state.amountCalculated.sub(step.amountOut.toInt256());
+            } else {
+                state.amountSpecifiedRemaining += step.amountOut.toInt256();
+                state.amountCalculated = state.amountCalculated.add((step.amountIn + step.feeAmount).toInt256());
+            }
+
+            // if the protocol fee is on, calculate how much is owed, decrement feeAmount, and increment protocolFee
+            if (cache.feeProtocol > 0) {
+                uint256 delta = step.feeAmount / cache.feeProtocol;
+                step.feeAmount -= delta;
+                state.protocolFee += uint128(delta);
+            }
+
+            // update global fee tracker
+            if (state.liquidity > 0)
+                state.feeGrowthGlobalX128 += FullMath.mulDiv(step.feeAmount, FixedPoint128.Q128, state.liquidity);
+
+            // shift tick if we reached the next price
+            if (state.sqrtPriceX96 == step.sqrtPriceNextX96) {
+                // if the tick is initialized, run the tick transition
+                if (step.initialized) {
+                    // check for the placeholder value, which we replace with the actual value the first time the swap
+                    // crosses an initialized tick
+                    if (!cache.computedLatestObservation) {
+                        (cache.tickCumulative, cache.secondsPerLiquidityCumulativeX128) = observations.observeSingle(
+                            cache.blockTimestamp,
+                            0,
+                            slot0Start.tick,
+                            slot0Start.observationIndex,
+                            cache.liquidityStart,
+                            slot0Start.observationCardinality
+                        );
+                        cache.computedLatestObservation = true;
+                    }
+                    int128 liquidityNet =
+                        ticks.cross(
+                            step.tickNext,
+                            (zeroForOne ? state.feeGrowthGlobalX128 : feeGrowthGlobal0X128),
+                            (zeroForOne ? feeGrowthGlobal1X128 : state.feeGrowthGlobalX128),
+                            cache.secondsPerLiquidityCumulativeX128,
+                            cache.tickCumulative,
+                            cache.blockTimestamp
+                        );
+                    // if we're moving leftward, we interpret liquidityNet as the opposite sign
+                    // safe because liquidityNet cannot be type(int128).min
+                    if (zeroForOne) liquidityNet = -liquidityNet;
+
+                    state.liquidity = LiquidityMath.addDelta(state.liquidity, liquidityNet);
+                }
+
+                state.tick = zeroForOne ? step.tickNext - 1 : step.tickNext;
+            } else if (state.sqrtPriceX96 != step.sqrtPriceStartX96) {
+                // recompute unless we're on a lower tick boundary (i.e. already transitioned ticks), and haven't moved
+                state.tick = TickMath.getTickAtSqrtRatio(state.sqrtPriceX96);
+            }
+        }
+
+        // update tick and write an oracle entry if the tick change
+        if (state.tick != slot0Start.tick) {
+            (uint16 observationIndex, uint16 observationCardinality) =
+                observations.write(
+                    slot0Start.observationIndex,
+                    cache.blockTimestamp,
+                    slot0Start.tick,
+                    cache.liquidityStart,
+                    slot0Start.observationCardinality,
+                    slot0Start.observationCardinalityNext
+                );
+            (slot0.sqrtPriceX96, slot0.tick, slot0.observationIndex, slot0.observationCardinality) = (
+                state.sqrtPriceX96,
+                state.tick,
+                observationIndex,
+                observationCardinality
+            );
+        } else {
+            // otherwise just update the price
+            slot0.sqrtPriceX96 = state.sqrtPriceX96;
+        }
+
+        // update liquidity if it changed
+        if (cache.liquidityStart != state.liquidity) liquidity = state.liquidity;
+
+        // update fee growth global and, if necessary, protocol fees
+        // overflow is acceptable, protocol has to withdraw before it hits type(uint128).max fees
+        if (zeroForOne) {
+            feeGrowthGlobal0X128 = state.feeGrowthGlobalX128;
+            if (state.protocolFee > 0) protocolFees.token0 += state.protocolFee;
+        } else {
+            feeGrowthGlobal1X128 = state.feeGrowthGlobalX128;
+            if (state.protocolFee > 0) protocolFees.token1 += state.protocolFee;
+        }
+
+        (amount0, amount1) = zeroForOne == exactInput
+            ? (amountSpecified - state.amountSpecifiedRemaining, state.amountCalculated)
+            : (state.amountCalculated, amountSpecified - state.amountSpecifiedRemaining);
+
+        // do the transfers and collect payment
+        if (zeroForOne) {
+            if (amount1 < 0) TransferHelper.safeTransfer(token1, recipient, uint256(-amount1));
+
+            uint256 balance0Before = balance0();
+            IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+            require(balance0Before.add(uint256(amount0)) <= balance0(), 'IIA');
+        } else {
+            if (amount0 < 0) TransferHelper.safeTransfer(token0, recipient, uint256(-amount0));
+
+            uint256 balance1Before = balance1();
+            IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+            require(balance1Before.add(uint256(amount1)) <= balance1(), 'IIA');
+        }
+
+        emit Swap(msg.sender, recipient, amount0, amount1, state.sqrtPriceX96, state.liquidity, state.tick);
+        slot0.unlocked = true;
+    }
+```
+
+The code you’ve provided is a function from a decentralized exchange (likely a part of a Uniswap-like automated market maker or liquidity pool) that performs a token swap between two assets. This function contains a lot of advanced mechanisms and optimizations used to efficiently perform swaps while accounting for fees, liquidity, price changes, and more.
+
+Let’s break it down line by line and explain what each part is doing:
+
+---
+
+### Function Signature
+
+```solidity
+function swap(
+    address recipient,
+    bool zeroForOne,
+    int256 amountSpecified,
+    uint160 sqrtPriceLimitX96,
+    bytes calldata data
+) external override noDelegateCall returns (int256 amount0, int256 amount1) {
+```
+
+- **`recipient`**: The address that will receive the output tokens after the swap.
+- **`zeroForOne`**: A boolean that indicates the direction of the swap. If `true`, it's swapping token0 for token1, and if `false`, it's swapping token1 for token0.
+- **`amountSpecified`**: The amount of tokens the user is specifying for the swap. This can be a positive number if it's an exact input (the user specifies how much they want to swap) or negative if it's an exact output (the user specifies how much they want to receive).
+- **`sqrtPriceLimitX96`**: The price limit, in square root format (scaled by `X96`), that the swap cannot exceed. It's used to prevent slippage beyond a certain price.
+- **`data`**: Additional data to be passed to the swap callback, which may contain custom data for the external contract.
+- **Returns**: The function returns two values, `amount0` and `amount1`, which represent the amounts of token0 and token1 that were involved in the swap.
+
+---
+
+### Require Statements
+
+```solidity
+require(amountSpecified != 0, 'AS');
+```
+
+- This checks that the `amountSpecified` is not zero, ensuring that there is an actual swap to perform.
+
+```solidity
+Slot0 memory slot0Start = slot0;
+require(slot0Start.unlocked, 'LOK');
+```
+
+- It saves the current state (`slot0`) and checks if the contract is unlocked. If it's locked, it reverts with the error `LOK` (likely meaning "locked").
+
+```solidity
+require(
+    zeroForOne
+        ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > TickMath.MIN_SQRT_RATIO
+        : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < TickMath.MAX_SQRT_RATIO,
+    'SPL'
+);
+```
+
+- This requires that the price limit (`sqrtPriceLimitX96`) is within a valid range. The price limit is validated depending on whether it's a swap from `token0` to `token1` or the opposite. The condition ensures that the swap doesn’t exceed certain boundaries (`MIN_SQRT_RATIO` and `MAX_SQRT_RATIO`).
+
+```solidity
+slot0.unlocked = false;
+```
+
+- It locks the contract, preventing reentrancy attacks or multiple swaps from occurring simultaneously.
+
+---
+
+### Swap Cache Setup
+
+```solidity
+SwapCache memory cache = SwapCache({
+    liquidityStart: liquidity,
+    blockTimestamp: _blockTimestamp(),
+    feeProtocol: zeroForOne ? (slot0Start.feeProtocol % 16) : (slot0Start.feeProtocol >> 4),
+    secondsPerLiquidityCumulativeX128: 0,
+    tickCumulative: 0,
+    computedLatestObservation: false
+});
+```
+
+- **SwapCache** is initialized here to store some state variables for the swap. This includes:
+  - `liquidityStart`: The current liquidity in the pool.
+  - `blockTimestamp`: The timestamp of the block.
+  - `feeProtocol`: A fee modifier depending on the direction of the swap.
+  - `secondsPerLiquidityCumulativeX128` and `tickCumulative`: Used for time-based calculations of the liquidity in the pool.
+  - `computedLatestObservation`: A flag to indicate if the latest price observation has been computed.
+
+---
+
+### Determine Exact Input or Output
+
+```solidity
+bool exactInput = amountSpecified > 0;
+```
+
+- This sets a flag to determine whether the swap is exact input or exact output:
+  - If `amountSpecified` is positive, it’s an exact input (the user specifies how much they want to send).
+  - If negative, it's an exact output (the user specifies how much they want to receive).
+
+---
+
+### SwapState Initialization
+
+```solidity
+SwapState memory state = SwapState({
+    amountSpecifiedRemaining: amountSpecified,
+    amountCalculated: 0,
+    sqrtPriceX96: slot0Start.sqrtPriceX96,
+    tick: slot0Start.tick,
+    feeGrowthGlobalX128: zeroForOne ? feeGrowthGlobal0X128 : feeGrowthGlobal1X128,
+    protocolFee: 0,
+    liquidity: cache.liquidityStart
+});
+```
+
+- **SwapState** is initialized to track the state of the swap:
+  - `amountSpecifiedRemaining`: The remaining amount to be swapped (starts as `amountSpecified`).
+  - `amountCalculated`: Tracks the amount of tokens received or spent.
+  - `sqrtPriceX96`: The starting price of the swap.
+  - `tick`: The current tick of the pool.
+  - `feeGrowthGlobalX128`: Tracks the fee growth for the specific token.
+  - `protocolFee`: The protocol fee, initially 0.
+  - `liquidity`: The liquidity in the pool, initialized from `cache`.
+
+---
+
+### The Main Swap Loop
+
+```solidity
+while (state.amountSpecifiedRemaining != 0 && state.sqrtPriceX96 != sqrtPriceLimitX96) {
+    StepComputations memory step;
+    step.sqrtPriceStartX96 = state.sqrtPriceX96;
+```
+
+- This starts the loop where the swap happens. The loop continues as long as the remaining amount to swap is not zero and the price has not reached the specified limit.
+
+```solidity
+(step.tickNext, step.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
+    state.tick,
+    tickSpacing,
+    zeroForOne
+);
+```
+
+- It fetches the next initialized tick (`tickNext`), which represents the next price point in the price curve. The tick is chosen based on whether the swap is from token0 to token1 or vice versa (`zeroForOne`).
+
+```solidity
+if (step.tickNext < TickMath.MIN_TICK) {
+    step.tickNext = TickMath.MIN_TICK;
+} else if (step.tickNext > TickMath.MAX_TICK) {
+    step.tickNext = TickMath.MAX_TICK;
+}
+```
+
+- This ensures that the tick does not go beyond the allowed range, `MIN_TICK` to `MAX_TICK`.
+
+```solidity
+step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(step.tickNext);
+```
+
+- It calculates the next price in square root format at the `tickNext`.
+
+---
+
+### Swap Calculation
+
+```solidity
+(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = SwapMath.computeSwapStep(
+    state.sqrtPriceX96,
+    (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
+        ? sqrtPriceLimitX96
+        : step.sqrtPriceNextX96,
+    state.liquidity,
+    state.amountSpecifiedRemaining,
+    fee
+);
+```
+
+- The actual swap step is computed. This calculates:
+  - The new price (`sqrtPriceX96`).
+  - The input and output amounts (`amountIn`, `amountOut`).
+  - The fee amount (`feeAmount`).
+
+---
+
+### Fee Calculation and Global Fee Update
+
+```solidity
+if (cache.feeProtocol > 0) {
+    uint256 delta = step.feeAmount / cache.feeProtocol;
+    step.feeAmount -= delta;
+    state.protocolFee += uint128(delta);
+}
+```
+
+- If the protocol fee is active, the fee is calculated and subtracted from the `feeAmount`, with the fee being added to `protocolFee`.
+
+```solidity
+if (state.liquidity > 0)
+    state.feeGrowthGlobalX128 += FullMath.mulDiv(step.feeAmount, FixedPoint128.Q128, state.liquidity);
+```
+
+- The global fee growth is updated based on the amount of liquidity in the pool.
+
+---
+
+### Tick Transition
+
+```solidity
+if (state.sqrtPriceX96 == step.sqrtPriceNextX96) {
+    if (step.initialized) {
+        int128 liquidityNet = ticks.cross(
+            step.tickNext,
+            (zeroForOne ? state.feeGrowthGlobalX128 : feeGrowthGlobal0X128),
+            (zeroForOne ? feeGrowthGlobal1X128 : state.feeGrowthGlobalX128),
+            cache.secondsPerLiquidityCumulativeX128,
+            cache.tickCumulative,
+            cache.blockTimestamp
+        );
+        if (zeroForOne) liquidityNet = -liquidityNet;
+        state.liquidity = LiquidityMath.addDelta(state.liquidity, liquidityNet);
+    }
+    state.tick = zeroForOne ? step.tickNext - 1 : step.tickNext;
+}
+```
+
+- This checks if the swap reached the next tick. If it has, it performs the tick transition, updating the liquidity in the pool and adjusting the tick position.
+
+---
+
+### Final Updates and Transfers
+
+After all the steps in the loop are completed, the function finalizes the swap by:
+
+- Updating the tick and price.
+- Transferring tokens to the recipient.
+- Emitting an
+
+### 2.99 flash():
+
+```bash
+function flash(
+        address recipient,
+        uint256 amount0,
+        uint256 amount1,
+        bytes calldata data
+    ) external override lock noDelegateCall {
+        uint128 _liquidity = liquidity;
+        require(_liquidity > 0, 'L');
+
+        uint256 fee0 = FullMath.mulDivRoundingUp(amount0, fee, 1e6);
+        uint256 fee1 = FullMath.mulDivRoundingUp(amount1, fee, 1e6);
+        uint256 balance0Before = balance0();
+        uint256 balance1Before = balance1();
+
+        if (amount0 > 0) TransferHelper.safeTransfer(token0, recipient, amount0);
+        if (amount1 > 0) TransferHelper.safeTransfer(token1, recipient, amount1);
+
+        IUniswapV3FlashCallback(msg.sender).uniswapV3FlashCallback(fee0, fee1, data);
+
+        uint256 balance0After = balance0();
+        uint256 balance1After = balance1();
+
+        require(balance0Before.add(fee0) <= balance0After, 'F0');
+        require(balance1Before.add(fee1) <= balance1After, 'F1');
+
+        // sub is safe because we know balanceAfter is gt balanceBefore by at least fee
+        uint256 paid0 = balance0After - balance0Before;
+        uint256 paid1 = balance1After - balance1Before;
+
+        if (paid0 > 0) {
+            uint8 feeProtocol0 = slot0.feeProtocol % 16;
+            uint256 fees0 = feeProtocol0 == 0 ? 0 : paid0 / feeProtocol0;
+            if (uint128(fees0) > 0) protocolFees.token0 += uint128(fees0);
+            feeGrowthGlobal0X128 += FullMath.mulDiv(paid0 - fees0, FixedPoint128.Q128, _liquidity);
+        }
+        if (paid1 > 0) {
+            uint8 feeProtocol1 = slot0.feeProtocol >> 4;
+            uint256 fees1 = feeProtocol1 == 0 ? 0 : paid1 / feeProtocol1;
+            if (uint128(fees1) > 0) protocolFees.token1 += uint128(fees1);
+            feeGrowthGlobal1X128 += FullMath.mulDiv(paid1 - fees1, FixedPoint128.Q128, _liquidity);
+        }
+
+        emit Flash(msg.sender, recipient, amount0, amount1, paid0, paid1);
+    }
+```
+
+The `flash` function you’ve provided appears to be part of a decentralized exchange (likely a Uniswap V3-style automated market maker) that implements a **flash loan**. A flash loan allows a user to borrow assets temporarily and perform some operations, as long as the borrowed amount plus fees are returned in the same transaction.
+
+Let’s break this function down line by line to explain what it does:
+
+---
+
+### Function Signature
+
+```solidity
+function flash(
+    address recipient,
+    uint256 amount0,
+    uint256 amount1,
+    bytes calldata data
+) external override lock noDelegateCall {
+```
+
+- **`recipient`**: The address that will receive the loaned tokens (`amount0` and `amount1`).
+- **`amount0`**: The amount of `token0` that will be loaned to the recipient.
+- **`amount1`**: The amount of `token1` that will be loaned to the recipient.
+- **`data`**: Extra data that will be passed to the callback function `uniswapV3FlashCallback`. This is usually used for custom logic that the recipient may want to execute after receiving the flash loan.
+- **`lock`**: This modifier likely ensures that the function can’t be reentered or executed recursively within the same transaction (prevents reentrancy attacks).
+- **`noDelegateCall`**: A modifier to prevent delegate calls, ensuring the function is called directly on the contract (avoiding malicious contract calls that might exploit the contract's state).
+
+---
+
+### Initial Checks
+
+```solidity
+uint128 _liquidity = liquidity;
+require(_liquidity > 0, 'L');
+```
+
+- The current liquidity of the pool is stored in `_liquidity`. If liquidity is `0`, it reverts with the error `'L'` (likely meaning "Liquidity is zero" or "Insufficient liquidity").
+
+---
+
+### Fee Calculation
+
+```solidity
+uint256 fee0 = FullMath.mulDivRoundingUp(amount0, fee, 1e6);
+uint256 fee1 = FullMath.mulDivRoundingUp(amount1, fee, 1e6);
+```
+
+- The fees are calculated for the flash loan based on the `amount0` and `amount1` loaned to the recipient. The fee is determined by multiplying the loaned amounts by the fee rate (`fee`), and the result is divided by `1e6`. `mulDivRoundingUp` ensures that any fractional fee is rounded up to the next integer.
+  - `fee0` is the fee for `token0` (based on the loan amount `amount0`).
+  - `fee1` is the fee for `token1` (based on the loan amount `amount1`).
+
+---
+
+### Balances Before Transfer
+
+```solidity
+uint256 balance0Before = balance0();
+uint256 balance1Before = balance1();
+```
+
+- These store the balances of `token0` and `token1` in the contract before the flash loan is issued.
+
+---
+
+### Transfer Tokens to Recipient
+
+```solidity
+if (amount0 > 0) TransferHelper.safeTransfer(token0, recipient, amount0);
+if (amount1 > 0) TransferHelper.safeTransfer(token1, recipient, amount1);
+```
+
+- The requested amounts of `token0` and `token1` are transferred to the `recipient` (borrower).
+- `TransferHelper.safeTransfer` ensures that the transfer is done safely and will revert if there’s an error (e.g., insufficient balance or incorrect transfer).
+
+---
+
+### Flash Callback
+
+```solidity
+IUniswapV3FlashCallback(msg.sender).uniswapV3FlashCallback(fee0, fee1, data);
+```
+
+- After the tokens are transferred, the contract calls back to the `msg.sender` (the entity that initiated the flash loan) via the `uniswapV3FlashCallback` function.
+- The callback allows the `msg.sender` to execute any custom logic they want (e.g., arbitrage, liquidation) using the flash-loaned tokens. The `fee0` and `fee1` are passed to this callback, which the recipient must pay back alongside the loaned amount.
+
+---
+
+### Balances After Transfer and Fee Validation
+
+```solidity
+uint256 balance0After = balance0();
+uint256 balance1After = balance1();
+```
+
+- These store the balances of `token0` and `token1` in the contract after the callback has been executed and the tokens should be returned.
+
+```solidity
+require(balance0Before.add(fee0) <= balance0After, 'F0');
+require(balance1Before.add(fee1) <= balance1After, 'F1');
+```
+
+- These `require` statements ensure that the contract has received back at least the borrowed amount plus the applicable fee. If either `token0` or `token1` is not returned with the correct fee, the transaction will revert with the respective error messages `'F0'` or `'F1'`.
+
+---
+
+### Fee and Fee Growth Updates
+
+```solidity
+// sub is safe because we know balanceAfter is gt balanceBefore by at least fee
+uint256 paid0 = balance0After - balance0Before;
+uint256 paid1 = balance1After - balance1Before;
+```
+
+- The actual amounts of `token0` and `token1` paid back are calculated by subtracting the balances before the flash loan from the balances after the loan.
+
+---
+
+### Fee Protocol and Fee Growth Calculation
+
+For each token (`token0` and `token1`), the following logic applies:
+
+```solidity
+if (paid0 > 0) {
+    uint8 feeProtocol0 = slot0.feeProtocol % 16;
+    uint256 fees0 = feeProtocol0 == 0 ? 0 : paid0 / feeProtocol0;
+    if (uint128(fees0) > 0) protocolFees.token0 += uint128(fees0);
+    feeGrowthGlobal0X128 += FullMath.mulDiv(paid0 - fees0, FixedPoint128.Q128, _liquidity);
+}
+```
+
+- If `token0` was paid back:
+  - The protocol fee (`feeProtocol0`) is derived from the contract’s current fee settings (`slot0.feeProtocol % 16`).
+  - If there’s a fee, it’s deducted from the `paid0` amount and added to the `protocolFees.token0`.
+  - The global fee growth for `token0` (`feeGrowthGlobal0X128`) is updated using the paid amount (after subtracting the protocol fee) and the current liquidity.
+
+```solidity
+if (paid1 > 0) {
+    uint8 feeProtocol1 = slot0.feeProtocol >> 4;
+    uint256 fees1 = feeProtocol1 == 0 ? 0 : paid1 / feeProtocol1;
+    if (uint128(fees1) > 0) protocolFees.token1 += uint128(fees1);
+    feeGrowthGlobal1X128 += FullMath.mulDiv(paid1 - fees1, FixedPoint128.Q128, _liquidity);
+}
+```
+
+- A similar calculation is done for `token1`. The protocol fee is derived using `slot0.feeProtocol >> 4`, and the global fee growth (`feeGrowthGlobal1X128`) is updated.
+
+---
+
+### Emit Flash Event
+
+```solidity
+emit Flash(msg.sender, recipient, amount0, amount1, paid0, paid1);
+```
+
+- The function emits a `Flash` event that records:
+  - `msg.sender` (who initiated the flash loan),
+  - `recipient` (who received the loaned tokens),
+  - The `amount0` and `amount1` loaned,
+  - The `paid0` and `paid1` amounts that were paid back (including the fees).
+
+---
+
+### Summary
+
+The `flash` function provides a **flash loan** to the caller (recipient), allowing them to borrow `token0` and `token1` temporarily. The caller can use these tokens for any purpose (e.g., arbitrage), but must repay the loan plus fees within the same transaction. After the loan is executed, the contract checks that the correct amounts (including fees) are returned, and updates the liquidity and fee records accordingly.
+
+Key components:
+
+1. Transfer loaned tokens to the recipient.
+2. Allow the recipient to perform operations via a callback (`uniswapV3FlashCallback`).
+3. Ensure that the tokens (plus fees) are returned by the recipient.
+4. Update the contract's fee growth and liquidity.
+5. Emit an event recording the details of the flash loan transaction.
+
+### setfeeprotocol():
+
+```bash
+function setFeeProtocol(uint8 feeProtocol0, uint8 feeProtocol1) external override lock onlyFactoryOwner {
+        require(
+            (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10)) &&
+                (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10))
+        );
+        uint8 feeProtocolOld = slot0.feeProtocol;
+        slot0.feeProtocol = feeProtocol0 + (feeProtocol1 << 4);
+        emit SetFeeProtocol(feeProtocolOld % 16, feeProtocolOld >> 4, feeProtocol0, feeProtocol1);
+    }
+```

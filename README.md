@@ -550,7 +550,7 @@ This library is fundamental to the mechanics of Uniswap V3. It enables:
     Efficient Liquidity Provision: Optimized management of liquidity across different price ranges.
     Smooth Price Curves: The use of sqrt prices ensures a smooth and efficient price curve.
 
-#### SwapMath.sol Explained
+#### SwapMath.sol
 
 This library, SwapMath.sol, provides the core logic for calculating the results of swaps within a single tick price range in Uniswap V3. It's a crucial component for determining the amount of tokens exchanged and the resulting price change during a swap.
 
@@ -1410,7 +1410,7 @@ These data structures are used to keep track of various state variables and inte
 #### SWAP():
 
 ```bash
- function swap(
+function swap(
         address recipient,
         bool zeroForOne,
         int256 amountSpecified,
@@ -1606,22 +1606,6 @@ These data structures are used to keep track of various state variables and inte
 ```
 
 The code you’ve provided is a function from a decentralized exchange (likely a part of a Uniswap-like automated market maker or liquidity pool) that performs a token swap between two assets. This function contains a lot of advanced mechanisms and optimizations used to efficiently perform swaps while accounting for fees, liquidity, price changes, and more.
-
-Let’s break it down line by line and explain what each part is doing:
-
----
-
-### Function Signature
-
-```solidity
-function swap(
-    address recipient,
-    bool zeroForOne,
-    int256 amountSpecified,
-    uint160 sqrtPriceLimitX96,
-    bytes calldata data
-) external override noDelegateCall returns (int256 amount0, int256 amount1) {
-```
 
 - **`recipient`**: The address that will receive the output tokens after the swap.
 - **`zeroForOne`**: A boolean that indicates the direction of the swap. If `true`, it's swapping token0 for token1, and if `false`, it's swapping token1 for token0.
@@ -1888,21 +1872,6 @@ function flash(
 
 The `flash` function you’ve provided appears to be part of a decentralized exchange (likely a Uniswap V3-style automated market maker) that implements a **flash loan**. A flash loan allows a user to borrow assets temporarily and perform some operations, as long as the borrowed amount plus fees are returned in the same transaction.
 
-Let’s break this function down line by line to explain what it does:
-
----
-
-### Function Signature
-
-```solidity
-function flash(
-    address recipient,
-    uint256 amount0,
-    uint256 amount1,
-    bytes calldata data
-) external override lock noDelegateCall {
-```
-
 - **`recipient`**: The address that will receive the loaned tokens (`amount0` and `amount1`).
 - **`amount0`**: The amount of `token0` that will be loaned to the recipient.
 - **`amount1`**: The amount of `token1` that will be loaned to the recipient.
@@ -2073,21 +2042,11 @@ function setFeeProtocol(uint8 feeProtocol0, uint8 feeProtocol1) external overrid
 
 This function, `setFeeProtocol`, is part of a smart contract written in Solidity. It allows a factory owner to set or update fee protocol configurations, which likely govern how fees are handled in a decentralized exchange or liquidity pool contract.
 
-Let's go through the code line by line:
-
-### Line 1:
-
-```solidity
-function setFeeProtocol(uint8 feeProtocol0, uint8 feeProtocol1) external override lock onlyFactoryOwner {
-```
-
 - **function setFeeProtocol**: This defines a public function called `setFeeProtocol` that takes two parameters (`feeProtocol0` and `feeProtocol1`), both of type `uint8` (which is an unsigned 8-bit integer).
 - **external**: The function is marked as `external`, meaning it can be called by other contracts or external actors (e.g., via transactions).
 - **override**: This indicates that the function is overriding a function from a parent contract (possibly an interface or abstract contract).
 - **lock**: This is a custom modifier that is likely used to ensure that the function is not re-entered during execution (avoiding reentrancy attacks). This would prevent the function from being called recursively, a typical pattern in smart contracts.
 - **onlyFactoryOwner**: This is another modifier that restricts the execution of this function to only the factory owner. Only the entity that deployed or owns the factory can call this function.
-
-### Line 2:
 
 ```solidity
 require(
@@ -2102,16 +2061,12 @@ require(
   - Similarly for `feeProtocol1`: It must either be 0 or between 4 and 10 (inclusive).
 - This condition ensures that only valid fee protocols are set for both `feeProtocol0` and `feeProtocol1`.
 
-### Line 3:
-
 ```solidity
 uint8 feeProtocolOld = slot0.feeProtocol;
 ```
 
 - This line retrieves the current value of `feeProtocol` stored in `slot0`. The variable `slot0` is likely a state variable that holds important contract data, such as the current fee protocol configuration.
 - The `feeProtocolOld` is assigned the current fee protocol value, which will be used for logging and potentially comparison.
-
-### Line 4:
 
 ```solidity
 slot0.feeProtocol = feeProtocol0 + (feeProtocol1 << 4);
@@ -2124,8 +2079,6 @@ slot0.feeProtocol = feeProtocol0 + (feeProtocol1 << 4);
 - This encoding method creates a compact 8-bit representation where:
   - `feeProtocol0` takes the lower 4 bits.
   - `feeProtocol1` takes the higher 4 bits.
-
-### Line 5:
 
 ```solidity
 emit SetFeeProtocol(feeProtocolOld % 16, feeProtocolOld >> 4, feeProtocol0, feeProtocol1);
@@ -2179,10 +2132,6 @@ function collectProtocol(
 
 This function, `collectProtocol`, is a part of a smart contract that allows the factory owner to collect protocol fees in the form of two tokens (likely `token0` and `token1`) and transfer them to a specified recipient. It includes mechanisms for gas optimization, fee management, and event logging.
 
-Let's break down the code line by line:
-
-### Line 1:
-
 ```solidity
 function collectProtocol(
         address recipient,
@@ -2200,8 +2149,6 @@ function collectProtocol(
 - **lock**: A custom modifier that likely prevents reentrancy attacks by ensuring the function cannot be called recursively during its execution.
 - **onlyFactoryOwner**: A modifier ensuring that only the factory owner can call this function.
 - **returns (uint128 amount0, uint128 amount1)**: The function returns two values — the actual amounts of `token0` and `token1` that are collected and transferred.
-
-### Line 2:
 
 ```solidity
 amount0 = amount0Requested > protocolFees.token0 ? protocolFees.token0 : amount0Requested;
@@ -2229,7 +2176,7 @@ if (amount0 > 0) {
   - **protocolFees.token0 -= amount0;**: Decreases the `protocolFees.token0` balance by the amount being collected.
   - **TransferHelper.safeTransfer(token0, recipient, amount0);**: Uses a helper function `safeTransfer` (likely to safely transfer the token and revert on failure) to send the `amount0` of `token0` to the specified `recipient`.
 
-### Lines 10-16: Handling `token1`
+### Handling `token1`
 
 ```solidity
 if (amount1 > 0) {
@@ -2243,8 +2190,6 @@ if (amount1 > 0) {
   - If any `token1` is available, it checks if the requested amount equals the available balance and applies the same gas-saving technique (subtracting 1).
   - It then reduces the `protocolFees.token1` balance by the amount being collected.
   - Finally, it transfers the collected `amount1` of `token1` to the `recipient`.
-
-### Line 17:
 
 ```solidity
 emit CollectProtocol(msg.sender, recipient, amount0, amount1);

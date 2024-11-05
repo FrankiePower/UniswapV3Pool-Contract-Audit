@@ -1928,3 +1928,201 @@ function setFeeProtocol(uint8 feeProtocol0, uint8 feeProtocol1) external overrid
         emit SetFeeProtocol(feeProtocolOld % 16, feeProtocolOld >> 4, feeProtocol0, feeProtocol1);
     }
 ```
+
+This function, `setFeeProtocol`, is part of a smart contract written in Solidity. It allows a factory owner to set or update fee protocol configurations, which likely govern how fees are handled in a decentralized exchange or liquidity pool contract.
+
+Let's go through the code line by line:
+
+### Line 1:
+
+```solidity
+function setFeeProtocol(uint8 feeProtocol0, uint8 feeProtocol1) external override lock onlyFactoryOwner {
+```
+
+- **function setFeeProtocol**: This defines a public function called `setFeeProtocol` that takes two parameters (`feeProtocol0` and `feeProtocol1`), both of type `uint8` (which is an unsigned 8-bit integer).
+- **external**: The function is marked as `external`, meaning it can be called by other contracts or external actors (e.g., via transactions).
+- **override**: This indicates that the function is overriding a function from a parent contract (possibly an interface or abstract contract).
+- **lock**: This is a custom modifier that is likely used to ensure that the function is not re-entered during execution (avoiding reentrancy attacks). This would prevent the function from being called recursively, a typical pattern in smart contracts.
+- **onlyFactoryOwner**: This is another modifier that restricts the execution of this function to only the factory owner. Only the entity that deployed or owns the factory can call this function.
+
+### Line 2:
+
+```solidity
+require(
+    (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10)) &&
+    (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10))
+);
+```
+
+- This `require` statement enforces validation on the input parameters (`feeProtocol0` and `feeProtocol1`).
+  - `feeProtocol0 == 0`: If `feeProtocol0` is zero, the condition is satisfied, meaning no fee protocol is set.
+  - `feeProtocol0 >= 4 && feeProtocol0 <= 10`: This ensures that if `feeProtocol0` is not zero, it must be between 4 and 10 (inclusive). This likely corresponds to specific allowed fee protocol values.
+  - Similarly for `feeProtocol1`: It must either be 0 or between 4 and 10 (inclusive).
+- This condition ensures that only valid fee protocols are set for both `feeProtocol0` and `feeProtocol1`.
+
+### Line 3:
+
+```solidity
+uint8 feeProtocolOld = slot0.feeProtocol;
+```
+
+- This line retrieves the current value of `feeProtocol` stored in `slot0`. The variable `slot0` is likely a state variable that holds important contract data, such as the current fee protocol configuration.
+- The `feeProtocolOld` is assigned the current fee protocol value, which will be used for logging and potentially comparison.
+
+### Line 4:
+
+```solidity
+slot0.feeProtocol = feeProtocol0 + (feeProtocol1 << 4);
+```
+
+- This line updates the `feeProtocol` in `slot0` to a new value.
+- The new `feeProtocol` is calculated by combining `feeProtocol0` and `feeProtocol1`:
+  - `feeProtocol0`: The lower 4 bits of the new fee protocol.
+  - `feeProtocol1 << 4`: `feeProtocol1` is shifted left by 4 bits, effectively placing it in the upper 4 bits of the 8-bit `feeProtocol`.
+- This encoding method creates a compact 8-bit representation where:
+  - `feeProtocol0` takes the lower 4 bits.
+  - `feeProtocol1` takes the higher 4 bits.
+
+### Line 5:
+
+```solidity
+emit SetFeeProtocol(feeProtocolOld % 16, feeProtocolOld >> 4, feeProtocol0, feeProtocol1);
+```
+
+- This line emits an event to log the change in fee protocols. Events are used to provide logs that are easily accessible to external parties (e.g., off-chain listeners or UI interfaces).
+- **SetFeeProtocol** is the name of the event being emitted, and it passes the following parameters:
+  - `feeProtocolOld % 16`: This extracts the lower 4 bits of the old fee protocol (i.e., `feeProtocolOld` modulo 16) to get the old value of `feeProtocol0`.
+  - `feeProtocolOld >> 4`: This shifts `feeProtocolOld` right by 4 bits to get the old value of `feeProtocol1`.
+  - `feeProtocol0`: The new value of the lower 4 bits (`feeProtocol0`).
+  - `feeProtocol1`: The new value of the upper 4 bits (`feeProtocol1`).
+
+### Summary:
+
+The function `setFeeProtocol` allows the factory owner to set two fee protocol values (`feeProtocol0` and `feeProtocol1`), which are packed into a single 8-bit value. This updated value is stored in the contract’s state variable `slot0.feeProtocol`. The function includes validation to ensure the new fee protocol values fall within acceptable ranges, and it emits an event to log the change.
+
+The fee protocols are encoded as:
+
+- The lower 4 bits of the protocol are set by `feeProtocol0`.
+- The upper 4 bits are set by `feeProtocol1` (shifted left by 4).
+
+The `require` check ensures that the fee protocols are valid, and the event provides transparency by logging the previous and new fee protocol values.
+
+#### 2.987 collectProtocol():
+
+```bash
+function collectProtocol(
+        address recipient,
+        uint128 amount0Requested,
+        uint128 amount1Requested
+    ) external override lock onlyFactoryOwner returns (uint128 amount0, uint128 amount1) {
+        amount0 = amount0Requested > protocolFees.token0 ? protocolFees.token0 : amount0Requested;
+        amount1 = amount1Requested > protocolFees.token1 ? protocolFees.token1 : amount1Requested;
+
+        if (amount0 > 0) {
+            if (amount0 == protocolFees.token0) amount0--; // ensure that the slot is not cleared, for gas savings
+            protocolFees.token0 -= amount0;
+            TransferHelper.safeTransfer(token0, recipient, amount0);
+        }
+        if (amount1 > 0) {
+            if (amount1 == protocolFees.token1) amount1--; // ensure that the slot is not cleared, for gas savings
+            protocolFees.token1 -= amount1;
+            TransferHelper.safeTransfer(token1, recipient, amount1);
+        }
+
+        emit CollectProtocol(msg.sender, recipient, amount0, amount1);
+    }
+}
+
+```
+
+This function, `collectProtocol`, is a part of a smart contract that allows the factory owner to collect protocol fees in the form of two tokens (likely `token0` and `token1`) and transfer them to a specified recipient. It includes mechanisms for gas optimization, fee management, and event logging.
+
+Let's break down the code line by line:
+
+### Line 1:
+
+```solidity
+function collectProtocol(
+        address recipient,
+        uint128 amount0Requested,
+        uint128 amount1Requested
+    ) external override lock onlyFactoryOwner returns (uint128 amount0, uint128 amount1) {
+```
+
+- **function collectProtocol**: This is a public function defined to collect protocol fees.
+- **address recipient**: The recipient address to which the fees will be sent.
+- **uint128 amount0Requested**: The amount of `token0` that the caller requests to collect.
+- **uint128 amount1Requested**: The amount of `token1` that the caller requests to collect.
+- **external**: The function is publicly callable by external addresses or contracts.
+- **override**: This indicates the function overrides a method from a parent contract or interface.
+- **lock**: A custom modifier that likely prevents reentrancy attacks by ensuring the function cannot be called recursively during its execution.
+- **onlyFactoryOwner**: A modifier ensuring that only the factory owner can call this function.
+- **returns (uint128 amount0, uint128 amount1)**: The function returns two values — the actual amounts of `token0` and `token1` that are collected and transferred.
+
+### Line 2:
+
+```solidity
+amount0 = amount0Requested > protocolFees.token0 ? protocolFees.token0 : amount0Requested;
+amount1 = amount1Requested > protocolFees.token1 ? protocolFees.token1 : amount1Requested;
+```
+
+- These lines determine how much of each token the factory owner can collect.
+  - **amount0** is set to the lesser of `amount0Requested` or the current balance of `protocolFees.token0` (which is the available amount of `token0` fees).
+  - **amount1** is set to the lesser of `amount1Requested` or the available balance of `token1` fees.
+  - If the requested amount exceeds the available amount, only the available amount will be collected. Otherwise, the requested amount will be collected.
+
+### Lines 3-9: Handling `token0`
+
+```solidity
+if (amount0 > 0) {
+    if (amount0 == protocolFees.token0) amount0--; // ensure that the slot is not cleared, for gas savings
+    protocolFees.token0 -= amount0;
+    TransferHelper.safeTransfer(token0, recipient, amount0);
+}
+```
+
+- This block handles the collection of `token0` fees:
+  - **if (amount0 > 0)**: This checks if any `token0` is available to be collected.
+  - **if (amount0 == protocolFees.token0) amount0--;**: If the requested amount equals the total available `token0` in the contract (`protocolFees.token0`), it subtracts one from `amount0`. This is a gas optimization technique to prevent clearing the `token0` slot, which would require more gas for state updates. It ensures that the storage slot is not set to zero, thus avoiding unnecessary gas consumption.
+  - **protocolFees.token0 -= amount0;**: Decreases the `protocolFees.token0` balance by the amount being collected.
+  - **TransferHelper.safeTransfer(token0, recipient, amount0);**: Uses a helper function `safeTransfer` (likely to safely transfer the token and revert on failure) to send the `amount0` of `token0` to the specified `recipient`.
+
+### Lines 10-16: Handling `token1`
+
+```solidity
+if (amount1 > 0) {
+    if (amount1 == protocolFees.token1) amount1--; // ensure that the slot is not cleared, for gas savings
+    protocolFees.token1 -= amount1;
+    TransferHelper.safeTransfer(token1, recipient, amount1);
+}
+```
+
+- This block handles the collection of `token1` fees, following the same logic as for `token0`.
+  - If any `token1` is available, it checks if the requested amount equals the available balance and applies the same gas-saving technique (subtracting 1).
+  - It then reduces the `protocolFees.token1` balance by the amount being collected.
+  - Finally, it transfers the collected `amount1` of `token1` to the `recipient`.
+
+### Line 17:
+
+```solidity
+emit CollectProtocol(msg.sender, recipient, amount0, amount1);
+```
+
+- This line emits an event called `CollectProtocol`. Events are used to log information that can be accessed off-chain, such as by front-end applications or external monitoring systems.
+  - `msg.sender`: The address that called the function (the factory owner).
+  - `recipient`: The address that received the transferred protocol fees.
+  - `amount0`: The amount of `token0` that was transferred.
+  - `amount1`: The amount of `token1` that was transferred.
+
+### Summary:
+
+The function `collectProtocol` allows the factory owner to collect protocol fees in the form of two tokens (`token0` and `token1`). The contract checks if the requested amounts of tokens are available and, if so, transfers the requested amount (or the maximum available) to the specified `recipient`.
+
+Key points:
+
+- **Fee collection**: The function allows the collection of protocol fees in two different tokens (`token0` and `token1`).
+- **Gas optimization**: The function uses a gas-saving technique by ensuring that the fee slots (`token0` and `token1`) are not cleared entirely if the requested amount is equal to the available amount. This prevents unnecessary state changes and reduces gas costs.
+- **Safety**: Transfers are performed using a safe transfer function (`TransferHelper.safeTransfer`), which ensures that the transfer will fail gracefully if anything goes wrong.
+- **Event emission**: An event (`CollectProtocol`) is emitted to log the transfer details, providing transparency and enabling off-chain tracking of the fee collection.
+
+In essence, this function is a mechanism for the factory owner to collect protocol fees and transfer them to a recipient while ensuring that gas costs are minimized and the contract's state remains consistent.

@@ -72,3 +72,36 @@ Time-weighted average price (TWAP) oracles
 Historical price observations
 Configurable observation window
 Manipulation resistance through geometric mean prices
+
+### <h3 id="scope">1.7 Scope <h3>
+
+_(**Table: 1.7**: Compound GovernorBravoDelegate G2 Audit Scope)_
+| Files in scope |
+| :-------- | :------- |
+| Contracts: 1 | |
+| `UniswapV3Pool.sol` |
+| | |
+| Interfaces: 1 | |
+| `IUniswapV3Pool.sol` |
+import './interfaces/IUniswapV3PoolDeployer.sol';
+import './interfaces/IUniswapV3Factory.sol';
+import './interfaces/IERC20Minimal.sol';
+import './interfaces/callback/IUniswapV3MintCallback.sol';
+import './interfaces/callback/IUniswapV3SwapCallback.sol';
+import './interfaces/callback/IUniswapV3FlashCallback.sol';
+| | |
+| Imports: 14 | |
+| `NoDelegateCall.sol` |
+| `LowGasSafeMath.sol` |
+| `SafeCast.sol` |
+| `Tick.sol` |
+| `TickBitmap.sol` |
+| `Position.sol` |
+| `Oracle.sol` |
+| `FullMath.sol` |
+| `FixedPoint128.sol` |
+| `TransferHelper.sol` |
+| `TickMath.sol` |
+| `LiquidityMath.sol` |
+| `SqrtPriceMath.sol` |
+| `SwapMath.sol` |

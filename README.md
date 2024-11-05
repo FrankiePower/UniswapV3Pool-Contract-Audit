@@ -2,7 +2,7 @@
 
 | Project        | UniswapV3Pool                                     |
 | :------------- | :------------------------------------------------ |
-| Title          | Smart Contract Audit Report                       |
+| Title          | UniswapV3Pool Contract Audit Report               |
 | Version        | 1.0                                               |
 | Author         | [Ejezie Franklin](https://github.com/FrankyPower) |
 | Classification | Public                                            |
@@ -13,15 +13,10 @@
 
 - <a href="#intro"> 1. INTRODUCTION</a>
 
-  - <a href="#Disclaim"> 1.1 Disclaimer</a>
-  - <a href="#About"> 1.2 About Me </a>
-  - <a href="#Skills"> 1.3 Skills</a>
-  - <a href="#links"> 1.4 Link</a>
-  - <a href="#Cpg"> 1.5 Compound Governance</a>
-  - <a href="#Gbd"> 1.6 GovernorBravoDelegate</a>
-  - <a href="#scope"> 1.7 Scope</a>
-  - <a href="#roles"> 1.8 Roles</a>
-  - <a href="#overview"> 1.9 System Overview</a>
+  - <a href="#uniswap"> 1.1 UniswapV3Pool</a>
+  - <a href="#scope"> 1.2 Audit Scope</a>
+  - <a href="#interfaces"> 1.3 Interfaces</a>
+  - <a href="#libraries"> 1.4 Imports & Libraries</a>
 
 - <a href="#review"> 2.0 CONTRACT REVIEW</a>
 
@@ -35,7 +30,7 @@
 
 <h2 id="intro">1.0 INTRODUCTION </h2>
 
-### <h3 id="Cpg">1.5 UniswapV3 Pool<h3>
+### <h3 id="uniswap">1.1 UniswapV3 Pool<h3>
 
 Uniswap V3 is a groundbreaking advancement in automated market maker (AMM) technology, introducing concentrated liquidity which allows liquidity providers (LPs) to specify custom price ranges for their capital deployment. This innovation significantly improves capital efficiency compared to traditional AMM models by enabling LPs to concentrate their liquidity where it's most needed.
 
@@ -73,69 +68,39 @@ Historical price observations
 Configurable observation window
 Manipulation resistance through geometric mean prices
 
-### <h3 id="scope">1.7 Scope <h3>
+### <h3 id="scope">1.2 Audit Scope <h3>
 
-_(**Table: 1.7**: Compound GovernorBravoDelegate G2 Audit Scope)_
-| Files in scope |
-| :-------- |
-| Contracts: 1 |
-| `UniswapV3Pool.sol` |
-| |
-| Interfaces: 7 | |
-| `IUniswapV3Pool.sol` |
-| `IUniswapV3PoolDeployer.sol` |
-| `IUniswapV3Factory.sol` |
-| `IERC20Minimal.sol` |
-| `IUniswapV3MintCallback.sol` |
-| `IUniswapV3SwapCallback.sol` |
+| Files in scope                |
+| :---------------------------- |
+| Contracts: 1                  |
+| `UniswapV3Pool.sol`           |
+|                               |
+| Interfaces: 7                 |
+| `IUniswapV3Pool.sol`          |
+| `IUniswapV3PoolDeployer.sol`  |
+| `IUniswapV3Factory.sol`       |
+| `IERC20Minimal.sol`           |
+| `IUniswapV3MintCallback.sol`  |
+| `IUniswapV3SwapCallback.sol`  |
 | `IUniswapV3FlashCallback.sol` |
-| |
-| Imports: 14 | |
-| `NoDelegateCall.sol` |
-| `LowGasSafeMath.sol` |
-| `SafeCast.sol` |
-| `Tick.sol` |
-| `TickBitmap.sol` |
-| `Position.sol` |
-| `Oracle.sol` |
-| `FullMath.sol` |
-| `FixedPoint128.sol` |
-| `TransferHelper.sol` |
-| `TickMath.sol` |
-| `LiquidityMath.sol` |
-| `SqrtPriceMath.sol` |
-| `SwapMath.sol` |
+|                               |
+| Imports & Libraries: 14       |
+| `NoDelegateCall.sol`          |
+| `LowGasSafeMath.sol`          |
+| `SafeCast.sol`                |
+| `Tick.sol`                    |
+| `TickBitmap.sol`              |
+| `Position.sol`                |
+| `Oracle.sol`                  |
+| `FullMath.sol`                |
+| `FixedPoint128.sol`           |
+| `TransferHelper.sol`          |
+| `TickMath.sol`                |
+| `LiquidityMath.sol`           |
+| `SqrtPriceMath.sol`           |
+| `SwapMath.sol`                |
 
-### <h3 id="roles"> 1.8 Roles <h3>
-
-- #### Operator
-
-  - Initialize contract.
-  - Propose a proposal.
-  - Queue a proposal.
-  - Execute proposal.
-  - Cancel proposal.
-  - Vote on proposal.
-  - Whitelist a user.
-  - Set admin.
-
-- #### Admin
-
-  - Set voting delay.
-  - Set voting period.
-  - Set proposal threshold.
-  - Whitelist user.
-  - Set admin.
-
-- #### User
-
-  - Call the propose function to propose a proposal.
-  - Call the queue function to queue a proposal.
-  - Call the execute function to execute a proposal.
-  - Call the cancel function to cancel a proposal.
-  - Call the vote function to vote on a proposal.
-
-### <h3 id="overview"> 1.9 System Overview <h3>
+### <h3 id="interfaces"> 1.3 Interfaces<h3>
 
 #### IUniswapV3Pool.sol
 
@@ -148,13 +113,176 @@ This contract defines the interface for a Uniswap V3 pool. It provides the neces
     Owner Actions: Functions for the pool owner to perform administrative tasks, like setting fees and collecting protocol fees.
     Events: Events emitted by the pool to notify users of significant changes, like trades and liquidity changes.
 
+#### IUniswapV3PoolDeployer.sol Explained
+
+This interface, IUniswapV3PoolDeployer, defines a contract that is responsible for deploying Uniswap V3 pools. Its primary purpose is to provide the necessary parameters for pool initialization without requiring them to be hardcoded in the pool contract itself.
+
+Key Points:
+
+    Parameterization: The parameters() function allows the deployer contract to provide the following key parameters to the pool contract:
+        factory: The address of the factory contract that created the pool.
+        token0: The address of the first token in the pool (sorted lexicographically).
+        token1: The address of the second token in the pool.
+        fee: The fee charged for swaps within the pool, denominated in hundredths of a bip.
+        tickSpacing: The minimum distance between initialized ticks.
+
+    Benefits of Parameterization:
+        Flexibility: The deployer contract can dynamically set the pool parameters, allowing for more flexible pool creation.
+        Security: By avoiding hardcoded parameters, the pool contract becomes more secure and less prone to vulnerabilities.
+        Predictable Deployment Addresses: The constant initialization code hash of the pool contract allows for predictable deployment addresses, enabling efficient routing and interaction with the pool.
+
+How it Works:
+
+    Deployment: When a new pool is deployed, the deployer contract is instantiated with the necessary parameters.
+    Parameter Retrieval: The pool contract calls the parameters() function of the deployer contract to retrieve the parameters.
+    Pool Initialization: The pool contract uses the retrieved parameters to initialize its state, including setting up the tick bitmap, liquidity, and fee growth variables.
+
+By using this interface, Uniswap V3 achieves a high degree of flexibility and security in pool deployment while maintaining efficient and predictable behavior.
+
+#### IUniswapV3Factory.sol Explained
+
+This interface, IUniswapV3Factory, defines the core functions and events of a Uniswap V3 factory contract. It's responsible for creating and managing Uniswap V3 pools.
+
+Key Functions and Events:
+
+    owner(): Returns the current owner of the factory.
+    feeAmountTickSpacing(uint24 fee): Returns the tick spacing associated with a specific fee level.
+    getPool(address tokenA, address tokenB, uint24 fee): Returns the address of a pool for a given pair of tokens and fee, if it exists.
+    createPool(address tokenA, address tokenB, uint24 fee): Creates a new pool for the specified tokens and fee.
+    setOwner(address _owner): Allows the current owner to transfer ownership of the factory.
+    enableFeeAmount(uint24 fee, int24 tickSpacing): Enables a new fee level and its corresponding tick spacing.
+
+Events:
+
+    OwnerChanged: Emitted when the factory ownership is transferred.
+    PoolCreated: Emitted when a new pool is created.
+    FeeAmountEnabled: Emitted when a new fee level is enabled.
+
+How it Works:
+
+    Pool Creation: When a user calls the createPool function, the factory:
+        Checks if the pool already exists.
+        Validates the fee level and tick spacing.
+        Deploys a new pool contract with the specified parameters.
+        Emits a PoolCreated event.
+    Fee Management: The factory allows the owner to enable new fee levels and their corresponding tick spacings. This provides flexibility in adjusting the fee structure to different market conditions.
+    Ownership Transfer: The setOwner function allows the current owner to transfer ownership of the factory to another address.
+
+Key Role:
+
+The Uniswap V3 factory plays a crucial role in the overall ecosystem by:
+Facilitating the creation of new pools.
+Managing the fee structure.
+Ensuring the security and flexibility of the protocol.
+
+#### IERC20Minimal.sol Explained
+
+This interface, IERC20Minimal, defines a simplified version of the full ERC20 token standard, specifically tailored for Uniswap V3's needs. It includes the essential functions for interacting with ERC20 tokens within the protocol.
+
+Key Functions and Events:
+
+    balanceOf(address account): Returns the balance of a specific account.
+    transfer(address recipient, uint256 amount): Transfers a specified amount of tokens from the sender's account to the recipient's account.
+    allowance(address owner, address spender): Returns the amount of tokens that a spender is allowed to spend on behalf of the owner.
+    approve(address spender, uint256 amount): Sets the allowance for a specific spender.
+    transferFrom(address sender, address recipient, uint256 amount): Transfers a specified amount of tokens from one account to another, up to the approved allowance.
+
+Events:
+
+    Transfer(address indexed from, address indexed to, uint256 value): Emitted when tokens are transferred from one account to another.
+    Approval(address indexed owner, address indexed spender, uint256 value): Emitted when the allowance for a spender is changed.
+
+The IERC20Minimal interface provides a streamlined approach to interacting with ERC20 tokens within the Uniswap V3 ecosystem. It simplifies the token transfer and approval processes, making the protocol more efficient and secure.
+
+#### IUniswapV3MintCallback.sol Explained
+
+This interface, IUniswapV3MintCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's mint function.
+
+Key Function:
+
+    uniswapV3MintCallback:
+        This function is called after a successful mint operation.
+        It takes three parameters:
+            amount0Owed: The amount of token0 owed to the pool.
+            amount1Owed: The amount of token1 owed to the pool.
+            data: Any arbitrary data passed through by the caller.
+        The callback contract is responsible for transferring the owed tokens to the pool.
+
+Purpose of the Callback:
+
+The callback mechanism ensures that the liquidity provider (LP) fulfills their obligation to deposit the required tokens to the pool. This prevents situations where LPs might mint liquidity without providing the necessary funds, which could destabilize the pool.
+
+How it Works:
+
+    LP Calls mint: An LP calls the mint function on the Uniswap V3 pool, specifying the desired liquidity range and amount.
+    Pool Calculates Fees: The pool calculates the fees owed to the protocol for providing liquidity in that range.
+    Pool Mints Liquidity: The pool mints the liquidity tokens to the LP's address.
+    Callback Triggered: The uniswapV3MintCallback function is called on the LP's contract.
+    Fee Payment: The LP's contract transfers the amount0Owed and amount1Owed to the pool as a fee for providing liquidity.
+
+By using this callback mechanism, Uniswap V3 ensures the integrity of the liquidity pool and protects against potential exploits.
+
+#### IUniswapV3SwapCallback.sol Explained
+
+This interface, IUniswapV3SwapCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's swap function.
+
+Key Function:
+
+    uniswapV3SwapCallback:
+        This function is called after a successful swap operation.
+        It takes three parameters:
+            amount0Delta: The change in the amount of token0. A positive value indicates that token0 was received by the pool, while a negative value indicates that token0 was sent to the pool.
+            amount1Delta: The change in the amount of token1. A positive value indicates that token1 was received by the pool, while a negative value indicates that token1 was sent to the pool.
+            data: Any arbitrary data passed through by the caller.
+        The callback contract is responsible for transferring the required tokens to or from the pool, depending on the signs of amount0Delta and amount1Delta.
+
+Purpose of the Callback:
+
+The callback mechanism ensures that the trader fulfills their obligation to transfer the required tokens to or from the pool. This prevents situations where traders might initiate a swap without having the necessary funds, which could destabilize the pool.
+
+How it Works:
+
+    Trader Calls swap: A trader calls the swap function on the Uniswap V3 pool, specifying the desired input and output amounts.
+    Pool Executes Swap: The pool executes the swap, calculating the exact input and output amounts and the fees.
+    Callback Triggered: The uniswapV3SwapCallback function is called on the trader's contract.
+    Token Transfer: The trader's contract transfers the required amount of tokens to or from the pool, as indicated by the amount0Delta and amount1Delta parameters.
+
+By using this callback mechanism, Uniswap V3 ensures the integrity of the swap process and protects the pool from potential manipulation.
+
+#### IUniswapV3FlashCallback.sol Explained
+
+This interface, IUniswapV3FlashCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's flash function.
+
+Key Function:
+
+    uniswapV3FlashCallback:
+        This function is called after a successful flash loan operation.
+        It takes three parameters:
+            fee0: The amount of token0 owed to the pool as a fee for the flash loan.
+            fee1: The amount of token1 owed to the pool as a fee for the flash loan.
+            data: Any arbitrary data passed through by the caller.
+        The callback contract is responsible for transferring the fee0 and fee1 amounts back to the pool.
+
+Purpose of the Callback:
+
+The callback mechanism ensures that the borrower of the flash loan fulfills their obligation to repay the borrowed tokens along with the associated fees. This prevents situations where borrowers might default on their loans, which could destabilize the pool.
+
+How it Works:
+
+    Borrower Calls flash: A borrower calls the flash function on the Uniswap V3 pool, specifying the desired amount of tokens to borrow.
+    Pool Executes Flash Loan: The pool transfers the requested tokens to the borrower's contract.
+    Callback Triggered: The uniswapV3FlashCallback function is called on the borrower's contract.
+    Token Repayment: The borrower's contract must transfer the borrowed tokens plus the fees back to the pool.
+
+By using this callback mechanism, Uniswap V3 enables users to borrow tokens for a short period without requiring collateral. However, it ensures that the borrowed funds are returned promptly, mitigating risks for the protocol.
+
+### <h3 id="interfaces"> 1.4 Imports & Libraries<h3>
+
 #### NoDelegateCall.sol
 
 This contract is a security measure to prevent malicious attacks involving delegatecall. Delegatecall is a mechanism that allows a contract to execute code from another contract, potentially leading to unintended consequences or security vulnerabilities.
 
 The NoDelegateCall contract provides a noDelegateCall modifier that can be applied to functions in a child contract. When this modifier is used, it checks if the current contract's address matches its original address. If there's a mismatch, it means a delegatecall has occurred, and the function execution is reverted.
-
-By using this contract, developers can enhance the security of their smart contracts and protect against potential attacks that exploit the delegatecall mechanism.
 
 #### LowGasSafeMath.sol
 
@@ -165,8 +293,6 @@ The key optimizations in this library include:
     Optimized Overflow and Underflow Checks: The library uses specific checks to detect overflow and underflow conditions efficiently.
     Assembly-Level Optimization: Some operations, like multiplication, might be implemented using assembly to further reduce gas costs.
     Minimal Gas Cost: The functions are designed to minimize the number of gas-consuming operations, such as comparisons and divisions.
-
-By using this library, developers can write more efficient smart contracts, especially in scenarios where gas costs are a significant concern, such as complex calculations or large-scale operations.
 
 #### SafeCast.sol
 
@@ -494,178 +620,6 @@ Key Concepts and Functions:
 Importance in Uniswap V3:
 
 This library is essential for the core functionality of Uniswap V3. It ensures accurate and efficient calculations of swap amounts and price changes, enabling smooth and fair trades within the protocol. By providing precise calculations, it contributes to the overall performance and security of the Uniswap V3 protocol.
-
-#### IUniswapV3PoolDeployer.sol Explained
-
-This interface, IUniswapV3PoolDeployer, defines a contract that is responsible for deploying Uniswap V3 pools. Its primary purpose is to provide the necessary parameters for pool initialization without requiring them to be hardcoded in the pool contract itself.
-
-Key Points:
-
-    Parameterization: The parameters() function allows the deployer contract to provide the following key parameters to the pool contract:
-        factory: The address of the factory contract that created the pool.
-        token0: The address of the first token in the pool (sorted lexicographically).
-        token1: The address of the second token in the pool.
-        fee: The fee charged for swaps within the pool, denominated in hundredths of a bip.
-        tickSpacing: The minimum distance between initialized ticks.
-
-    Benefits of Parameterization:
-        Flexibility: The deployer contract can dynamically set the pool parameters, allowing for more flexible pool creation.
-        Security: By avoiding hardcoded parameters, the pool contract becomes more secure and less prone to vulnerabilities.
-        Predictable Deployment Addresses: The constant initialization code hash of the pool contract allows for predictable deployment addresses, enabling efficient routing and interaction with the pool.
-
-How it Works:
-
-    Deployment: When a new pool is deployed, the deployer contract is instantiated with the necessary parameters.
-    Parameter Retrieval: The pool contract calls the parameters() function of the deployer contract to retrieve the parameters.
-    Pool Initialization: The pool contract uses the retrieved parameters to initialize its state, including setting up the tick bitmap, liquidity, and fee growth variables.
-
-By using this interface, Uniswap V3 achieves a high degree of flexibility and security in pool deployment while maintaining efficient and predictable behavior.
-
-#### IUniswapV3Factory.sol Explained
-
-This interface, IUniswapV3Factory, defines the core functions and events of a Uniswap V3 factory contract. It's responsible for creating and managing Uniswap V3 pools.
-
-Key Functions and Events:
-
-    owner(): Returns the current owner of the factory.
-    feeAmountTickSpacing(uint24 fee): Returns the tick spacing associated with a specific fee level.
-    getPool(address tokenA, address tokenB, uint24 fee): Returns the address of a pool for a given pair of tokens and fee, if it exists.
-    createPool(address tokenA, address tokenB, uint24 fee): Creates a new pool for the specified tokens and fee.
-    setOwner(address _owner): Allows the current owner to transfer ownership of the factory.
-    enableFeeAmount(uint24 fee, int24 tickSpacing): Enables a new fee level and its corresponding tick spacing.
-
-Events:
-
-    OwnerChanged: Emitted when the factory ownership is transferred.
-    PoolCreated: Emitted when a new pool is created.
-    FeeAmountEnabled: Emitted when a new fee level is enabled.
-
-How it Works:
-
-    Pool Creation: When a user calls the createPool function, the factory:
-        Checks if the pool already exists.
-        Validates the fee level and tick spacing.
-        Deploys a new pool contract with the specified parameters.
-        Emits a PoolCreated event.
-    Fee Management: The factory allows the owner to enable new fee levels and their corresponding tick spacings. This provides flexibility in adjusting the fee structure to different market conditions.
-    Ownership Transfer: The setOwner function allows the current owner to transfer ownership of the factory to another address.
-
-Key Role:
-
-The Uniswap V3 factory plays a crucial role in the overall ecosystem by:
-
-    Facilitating the creation of new pools.
-    Managing the fee structure.
-    Ensuring the security and flexibility of the protocol.
-
-By understanding the functions and events defined in this interface, you can gain insights into the core mechanisms of Uniswap V3 and how it operates.
-
-#### IERC20Minimal.sol Explained
-
-This interface, IERC20Minimal, defines a simplified version of the full ERC20 token standard, specifically tailored for Uniswap V3's needs. It includes the essential functions for interacting with ERC20 tokens within the protocol.
-
-Key Functions and Events:
-
-    balanceOf(address account): Returns the balance of a specific account.
-    transfer(address recipient, uint256 amount): Transfers a specified amount of tokens from the sender's account to the recipient's account.
-    allowance(address owner, address spender): Returns the amount of tokens that a spender is allowed to spend on behalf of the owner.
-    approve(address spender, uint256 amount): Sets the allowance for a specific spender.
-    transferFrom(address sender, address recipient, uint256 amount): Transfers a specified amount of tokens from one account to another, up to the approved allowance.
-
-Events:
-
-    Transfer(address indexed from, address indexed to, uint256 value): Emitted when tokens are transferred from one account to another.
-    Approval(address indexed owner, address indexed spender, uint256 value): Emitted when the allowance for a spender is changed.
-
-Why a Minimal Interface?
-
-By using a minimal interface, Uniswap V3 reduces the complexity and potential attack vectors associated with interacting with ERC20 tokens. It focuses on the core functionalities required for token transfers and approvals, ensuring efficient and secure operation.
-
-In Summary:
-
-The IERC20Minimal interface provides a streamlined approach to interacting with ERC20 tokens within the Uniswap V3 ecosystem. It simplifies the token transfer and approval processes, making the protocol more efficient and secure.
-
-#### IUniswapV3MintCallback.sol Explained
-
-This interface, IUniswapV3MintCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's mint function.
-
-Key Function:
-
-    uniswapV3MintCallback:
-        This function is called after a successful mint operation.
-        It takes three parameters:
-            amount0Owed: The amount of token0 owed to the pool.
-            amount1Owed: The amount of token1 owed to the pool.
-            data: Any arbitrary data passed through by the caller.
-        The callback contract is responsible for transferring the owed tokens to the pool.
-
-Purpose of the Callback:
-
-The callback mechanism ensures that the liquidity provider (LP) fulfills their obligation to deposit the required tokens to the pool. This prevents situations where LPs might mint liquidity without providing the necessary funds, which could destabilize the pool.
-
-How it Works:
-
-    LP Calls mint: An LP calls the mint function on the Uniswap V3 pool, specifying the desired liquidity range and amount.
-    Pool Calculates Fees: The pool calculates the fees owed to the protocol for providing liquidity in that range.
-    Pool Mints Liquidity: The pool mints the liquidity tokens to the LP's address.
-    Callback Triggered: The uniswapV3MintCallback function is called on the LP's contract.
-    Fee Payment: The LP's contract transfers the amount0Owed and amount1Owed to the pool as a fee for providing liquidity.
-
-By using this callback mechanism, Uniswap V3 ensures the integrity of the liquidity pool and protects against potential exploits.
-
-#### IUniswapV3SwapCallback.sol Explained
-
-This interface, IUniswapV3SwapCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's swap function.
-
-Key Function:
-
-    uniswapV3SwapCallback:
-        This function is called after a successful swap operation.
-        It takes three parameters:
-            amount0Delta: The change in the amount of token0. A positive value indicates that token0 was received by the pool, while a negative value indicates that token0 was sent to the pool.
-            amount1Delta: The change in the amount of token1. A positive value indicates that token1 was received by the pool, while a negative value indicates that token1 was sent to the pool.
-            data: Any arbitrary data passed through by the caller.
-        The callback contract is responsible for transferring the required tokens to or from the pool, depending on the signs of amount0Delta and amount1Delta.
-
-Purpose of the Callback:
-
-The callback mechanism ensures that the trader fulfills their obligation to transfer the required tokens to or from the pool. This prevents situations where traders might initiate a swap without having the necessary funds, which could destabilize the pool.
-
-How it Works:
-
-    Trader Calls swap: A trader calls the swap function on the Uniswap V3 pool, specifying the desired input and output amounts.
-    Pool Executes Swap: The pool executes the swap, calculating the exact input and output amounts and the fees.
-    Callback Triggered: The uniswapV3SwapCallback function is called on the trader's contract.
-    Token Transfer: The trader's contract transfers the required amount of tokens to or from the pool, as indicated by the amount0Delta and amount1Delta parameters.
-
-By using this callback mechanism, Uniswap V3 ensures the integrity of the swap process and protects the pool from potential manipulation.
-
-#### IUniswapV3FlashCallback.sol Explained
-
-This interface, IUniswapV3FlashCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's flash function.
-
-Key Function:
-
-    uniswapV3FlashCallback:
-        This function is called after a successful flash loan operation.
-        It takes three parameters:
-            fee0: The amount of token0 owed to the pool as a fee for the flash loan.
-            fee1: The amount of token1 owed to the pool as a fee for the flash loan.
-            data: Any arbitrary data passed through by the caller.
-        The callback contract is responsible for transferring the fee0 and fee1 amounts back to the pool.
-
-Purpose of the Callback:
-
-The callback mechanism ensures that the borrower of the flash loan fulfills their obligation to repay the borrowed tokens along with the associated fees. This prevents situations where borrowers might default on their loans, which could destabilize the pool.
-
-How it Works:
-
-    Borrower Calls flash: A borrower calls the flash function on the Uniswap V3 pool, specifying the desired amount of tokens to borrow.
-    Pool Executes Flash Loan: The pool transfers the requested tokens to the borrower's contract.
-    Callback Triggered: The uniswapV3FlashCallback function is called on the borrower's contract.
-    Token Repayment: The borrower's contract must transfer the borrowed tokens plus the fees back to the pool.
-
-By using this callback mechanism, Uniswap V3 enables users to borrow tokens for a short period without requiring collateral. However, it ensures that the borrowed funds are returned promptly, mitigating risks for the protocol.
 
 ## <h2 id="review"> 2.0 CONTRACT REVIEW <h2>
 

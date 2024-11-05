@@ -77,19 +77,19 @@ Manipulation resistance through geometric mean prices
 
 _(**Table: 1.7**: Compound GovernorBravoDelegate G2 Audit Scope)_
 | Files in scope |
-| :-------- | :------- |
-| Contracts: 1 | |
+| :-------- |
+| Contracts: 1 |
 | `UniswapV3Pool.sol` |
-| | |
-| Interfaces: 1 | |
+| |
+| Interfaces: 7 | |
 | `IUniswapV3Pool.sol` |
-import './interfaces/IUniswapV3PoolDeployer.sol';
-import './interfaces/IUniswapV3Factory.sol';
-import './interfaces/IERC20Minimal.sol';
-import './interfaces/callback/IUniswapV3MintCallback.sol';
-import './interfaces/callback/IUniswapV3SwapCallback.sol';
-import './interfaces/callback/IUniswapV3FlashCallback.sol';
-| | |
+| `IUniswapV3PoolDeployer.sol` |
+| `IUniswapV3Factory.sol` |
+| `IERC20Minimal.sol` |
+| `IUniswapV3MintCallback.sol` |
+| `IUniswapV3SwapCallback.sol` |
+| `IUniswapV3FlashCallback.sol` |
+| |
 | Imports: 14 | |
 | `NoDelegateCall.sol` |
 | `LowGasSafeMath.sol` |

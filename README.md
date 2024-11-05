@@ -688,47 +688,47 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
 
 This line declares a new Solidity contract named UniswapV3Pool that inherits from the IUniswapV3Pool interface and the NoDelegateCall contract. The IUniswapV3Pool interface defines the core functions and events of the Uniswap V3 pool contract.The NoDelegateCall contract is used to prevent the use of delegate call, a feature in Solidity that can be used to introduce security vulnerabilities.
 
-# using LowGasSafeMath for uint256;
+#### using LowGasSafeMath for uint256;
 
 This line instructs the Solidity compiler to use the LowGasSafeMath library for all uint256 operations within the contract.The LowGasSafeMath library provides gas-optimized mathematical operations with overflow/underflow checks.
 
-# using LowGasSafeMath for int256;
+#### using LowGasSafeMath for int256;
 
 Similar to the previous line, this line instructs the use of LowGasSafeMath for all int256 operations.
 
-# using SafeCast for uint256;
+#### using SafeCast for uint256;
 
 This line allows the use of the SafeCast library's functions for safely casting uint256 values.
 
-# using SafeCast for int256;
+#### using SafeCast for int256;
 
 This line allows the use of the SafeCast library's functions for safely casting int256 values.
 
-# using Tick for mapping(int24 => Tick.Info);
+#### using Tick for mapping(int24 => Tick.Info);
 
 This line associates the Tick library with the mapping of int24 (tick indexes) to Tick.Info structs.
 The Tick library provides functions and utilities for managing tick-related data.
 
-# using TickBitmap for mapping(int16 => uint256);
+#### using TickBitmap for mapping(int16 => uint256);
 
 This line associates the TickBitmap library with the mapping of int16 (tick index word indexes) to uint256 bitmaps.
 The TickBitmap library helps with efficient storage and manipulation of active ticks.
 
-# using Position for mapping(bytes32 => Position.Info);
+#### using Position for mapping(bytes32 => Position.Info);
 
 This line associates the Position library with the mapping of bytes32 (position IDs) to Position.Info structs.
 The Position library provides functions for managing liquidity positions.
 
-# using Position for Position.Info;
+#### using Position for Position.Info;
 
 This line associates the Position library directly with the Position.Info struct.
 
-# using Oracle for Oracle.Observation[65535];
+##### using Oracle for Oracle.Observation[65535];
 
 This line associates the Oracle library with the Oracle.Observation array of size 65,535.
 The Oracle library contains functions for working with the Uniswap V3 oracle.
 
-# State Variabes
+# State Variables
 
 ```bash
 address public immutable override factory;
@@ -896,7 +896,17 @@ Finally, the code block includes two modifiers:
 
 In summary, this code sets up the core state variables and data structures used by the Uniswap V3 pool contract, including the `Slot0` struct, global fee growth variables, protocol fee tracking, liquidity, and various mappings for ticks, positions, and observations.
 
-Okay, let's go through this code step-by-step:
+# Constructor
+
+```bash
+    constructor() {
+        int24 _tickSpacing;
+        (factory, token0, token1, fee, _tickSpacing) = IUniswapV3PoolDeployer(msg.sender).parameters();
+        tickSpacing = _tickSpacing;
+
+        maxLiquidityPerTick = Tick.tickSpacingToMaxLiquidityPerTick(_tickSpacing);
+    }
+```
 
 1. `constructor() {`: This is the constructor function of the contract, which is called when the contract is deployed.
 
@@ -911,9 +921,17 @@ Okay, let's go through this code step-by-step:
 
 5. `maxLiquidityPerTick = Tick.tickSpacingToMaxLiquidityPerTick(_tickSpacing);`: This line calculates the maximum liquidity per tick based on the `_tickSpacing` value, and assigns the result to the `maxLiquidityPerTick` state variable. The `Tick.tickSpacingToMaxLiquidityPerTick()` function is likely a helper function that performs this calculation.
 
-In summary, this constructor code initializes the contract with important parameters related to the Uniswap V3 pool, such as the factory address, token addresses, fee, tick spacing, and the maximum liquidity per tick. These values are used throughout the contract's functionality.
+# Functions
 
-Certainly, let's go through the code step by step:
+#### function checkTicks():
+
+```bash
+  function checkTicks(int24 tickLower, int24 tickUpper) private pure {
+        require(tickLower < tickUpper, 'TLU');
+        require(tickLower >= TickMath.MIN_TICK, 'TLM');
+        require(tickUpper <= TickMath.MAX_TICK, 'TUM');
+    }
+```
 
 1. `function checkTicks(int24 tickLower, int24 tickUpper) private pure {`: This is a private function called `checkTicks` that takes two `int24` parameters, `tickLower` and `tickUpper`. It performs some checks on these tick values.
 
@@ -923,33 +941,166 @@ Certainly, let's go through the code step by step:
 
 4. `require(tickUpper <= TickMath.MAX_TICK, 'TUM');`: This line checks that the `tickUpper` value is less than or equal to the `TickMath.MAX_TICK` value. If this condition is not met, it throws a revert error with the message `'TUM'`.
 
-5. `function _blockTimestamp() internal view virtual returns (uint32) {`: This is a virtual function that returns the current block timestamp, truncated to 32 bits. It is marked as `internal` and `view`, meaning it can be called internally within the contract and does not modify the contract state.
+#### function blockTimestamp():
 
-6. `return uint32(block.timestamp); // truncation is desired`: This line returns the current block timestamp, converted to a `uint32` value. The comment indicates that the truncation to 32 bits is intentional.
+```bash
+ function _blockTimestamp() internal view virtual returns (uint32) {
+        return uint32(block.timestamp); // truncation is desired
+    }
+```
 
-7. `function balance0() private view returns (uint256) {`: This is a private function that retrieves the pool's balance of the first token (`token0`).
+This is a virtual function that returns the current block timestamp, truncated to 32 bits. It is marked as `internal` and `view`, meaning it can be called internally within the contract and does not modify the contract state.
 
-8. `(bool success, bytes memory data) = token0.staticcall(abi.encodeWithSelector(IERC20Minimal.balanceOf.selector, address(this)));`: This line uses the `staticcall` function to call the `balanceOf` function of the `IERC20Minimal` interface on the `token0` contract, passing `address(this)` as the argument (which represents the current contract address). The result of the call is stored in the `success` and `data` variables.
+`return uint32(block.timestamp); // truncation is desired`: This line returns the current block timestamp, converted to a `uint32` value. The comment indicates that the truncation to 32 bits is intentional.
 
-9. `require(success && data.length >= 32);`: This line checks that the call to `balanceOf` was successful and that the returned data has a length of at least 32 bytes.
+#### function balance0():
 
-10. `return abi.decode(data, (uint256));`: This line decodes the returned data using the `abi.decode` function and returns the decoded `uint256` value, which represents the pool's balance of `token0`.
+```bash
+   function balance0() private view returns (uint256) {
+        (bool success, bytes memory data) =
+            token0.staticcall(abi.encodeWithSelector(IERC20Minimal.balanceOf.selector, address(this)));
+        require(success && data.length >= 32);
+        return abi.decode(data, (uint256));
+    }
+```
 
-11. `function balance1() private view returns (uint256) {`: This function is similar to `balance0()`, but it retrieves the pool's balance of the second token (`token1`).
+This is a private function that retrieves the pool's balance of the first token (`token0`).
 
-12. `function snapshotCumulativesInside(int24 tickLower, int24 tickUpper) external view override noDelegateCall returns (int56 tickCumulativeInside, uint160 secondsPerLiquidityInsideX128, uint32 secondsInside) {`: This is an external view function that takes two `int24` parameters, `tickLower` and `tickUpper`, and returns three values: `tickCumulativeInside`, `secondsPerLiquidityInsideX128`, and `secondsInside`.
+`(bool success, bytes memory data) = token0.staticcall(abi.encodeWithSelector(IERC20Minimal.balanceOf.selector, address(this)));`: This line uses the `staticcall` function to call the `balanceOf` function of the `IERC20Minimal` interface on the `token0` contract, passing `address(this)` as the argument (which represents the current contract address). The result of the call is stored in the `success` and `data` variables.
 
-13. `checkTicks(tickLower, tickUpper);`: This line calls the `checkTicks` function to verify that the `tickLower` and `tickUpper` values are valid.
+`require(success && data.length >= 32);`: This line checks that the call to `balanceOf` was successful and that the returned data has a length of at least 32 bytes.
 
-14. The function then retrieves various values from the `ticks` mapping, such as `tickCumulativeLower`, `secondsPerLiquidityOutsideLowerX128`, `secondsOutsideLower`, `tickCumulativeUpper`, `secondsPerLiquidityOutsideUpperX128`, and `secondsOutsideUpper`.
+`return abi.decode(data, (uint256));`: This line decodes the returned data using the `abi.decode` function and returns the decoded `uint256` value, which represents the pool's balance of `token0`.
 
-15. It also retrieves the current `slot0` struct, which contains information about the current state of the pool.
+#### function balance1():
 
-16. The function then performs a series of checks and calculations to determine the `tickCumulativeInside`, `secondsPerLiquidityInsideX128`, and `secondsInside` values, based on the current state of the pool and the provided `tickLower` and `tickUpper` values.
+```bash
+  function balance1() private view returns (uint256) {
+        (bool success, bytes memory data) =
+            token1.staticcall(abi.encodeWithSelector(IERC20Minimal.balanceOf.selector, address(this)));
+        require(success && data.length >= 32);
+        return abi.decode(data, (uint256));
+    }
+```
 
-17. `function observe(uint32[] calldata secondsAgos) external view override noDelegateCall returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s) {`: This is an external view function that takes an array of `uint32` values representing the number of seconds ago to observe, and returns two arrays: `tickCumulatives` and `secondsPerLiquidityCumulativeX128s`.
+This function is similar to `balance0()`, but it retrieves the pool's balance of the second token (`token1`).
 
-18. `return observations.observe(
+#### function snapshotCumulativesInside():
+
+```bash
+ function snapshotCumulativesInside(int24 tickLower, int24 tickUpper)
+        external
+        view
+        override
+        noDelegateCall
+        returns (
+            int56 tickCumulativeInside,
+            uint160 secondsPerLiquidityInsideX128,
+            uint32 secondsInside
+        )
+    {
+        checkTicks(tickLower, tickUpper);
+
+        int56 tickCumulativeLower;
+        int56 tickCumulativeUpper;
+        uint160 secondsPerLiquidityOutsideLowerX128;
+        uint160 secondsPerLiquidityOutsideUpperX128;
+        uint32 secondsOutsideLower;
+        uint32 secondsOutsideUpper;
+
+        {
+            Tick.Info storage lower = ticks[tickLower];
+            Tick.Info storage upper = ticks[tickUpper];
+            bool initializedLower;
+            (tickCumulativeLower, secondsPerLiquidityOutsideLowerX128, secondsOutsideLower, initializedLower) = (
+                lower.tickCumulativeOutside,
+                lower.secondsPerLiquidityOutsideX128,
+                lower.secondsOutside,
+                lower.initialized
+            );
+            require(initializedLower);
+
+            bool initializedUpper;
+            (tickCumulativeUpper, secondsPerLiquidityOutsideUpperX128, secondsOutsideUpper, initializedUpper) = (
+                upper.tickCumulativeOutside,
+                upper.secondsPerLiquidityOutsideX128,
+                upper.secondsOutside,
+                upper.initialized
+            );
+            require(initializedUpper);
+        }
+
+        Slot0 memory _slot0 = slot0;
+
+        if (_slot0.tick < tickLower) {
+            return (
+                tickCumulativeLower - tickCumulativeUpper,
+                secondsPerLiquidityOutsideLowerX128 - secondsPerLiquidityOutsideUpperX128,
+                secondsOutsideLower - secondsOutsideUpper
+            );
+        } else if (_slot0.tick < tickUpper) {
+            uint32 time = _blockTimestamp();
+            (int56 tickCumulative, uint160 secondsPerLiquidityCumulativeX128) =
+                observations.observeSingle(
+                    time,
+                    0,
+                    _slot0.tick,
+                    _slot0.observationIndex,
+                    liquidity,
+                    _slot0.observationCardinality
+                );
+            return (
+                tickCumulative - tickCumulativeLower - tickCumulativeUpper,
+                secondsPerLiquidityCumulativeX128 -
+                    secondsPerLiquidityOutsideLowerX128 -
+                    secondsPerLiquidityOutsideUpperX128,
+                time - secondsOutsideLower - secondsOutsideUpper
+            );
+        } else {
+            return (
+                tickCumulativeUpper - tickCumulativeLower,
+                secondsPerLiquidityOutsideUpperX128 - secondsPerLiquidityOutsideLowerX128,
+                secondsOutsideUpper - secondsOutsideLower
+            );
+        }
+    }
+```
+
+`function snapshotCumulativesInside(int24 tickLower, int24 tickUpper) external view override noDelegateCall returns (int56 tickCumulativeInside, uint160 secondsPerLiquidityInsideX128, uint32 secondsInside) {`: This is an external view function that takes two `int24` parameters, `tickLower` and `tickUpper`, and returns three values: `tickCumulativeInside`, `secondsPerLiquidityInsideX128`, and `secondsInside`.
+
+`checkTicks(tickLower, tickUpper);`: This line calls the `checkTicks` function to verify that the `tickLower` and `tickUpper` values are valid.
+
+The function then retrieves various values from the `ticks` mapping, such as `tickCumulativeLower`, `secondsPerLiquidityOutsideLowerX128`, `secondsOutsideLower`, `tickCumulativeUpper`, `secondsPerLiquidityOutsideUpperX128`, and `secondsOutsideUpper`.
+
+It also retrieves the current `slot0` struct, which contains information about the current state of the pool.
+
+The function then performs a series of checks and calculations to determine the `tickCumulativeInside`, `secondsPerLiquidityInsideX128`, and `secondsInside` values, based on the current state of the pool and the provided `tickLower` and `tickUpper` values.
+
+#### function observe():
+
+```bash
+ function observe(uint32[] calldata secondsAgos)
+        external
+        view
+        override
+        noDelegateCall
+        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
+    {
+        return
+            observations.observe(
+                _blockTimestamp(),
+                secondsAgos,
+                slot0.tick,
+                slot0.observationIndex,
+                liquidity,
+                slot0.observationCardinality
+            );
+    }
+```
+
+`function observe(uint32[] calldata secondsAgos) external view override noDelegateCall returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s) {`: This is an external view function that takes an array of `uint32` values representing the number of seconds ago to observe, and returns two arrays: `tickCumulatives` and `secondsPerLiquidityCumulativeX128s`.
+
+`return observations.observe(
     _blockTimestamp(),
     secondsAgos,
     slot0.tick,
@@ -958,36 +1109,76 @@ Certainly, let's go through the code step by step:
     slot0.observationCardinality
 );`: This line calls the `observe` function of the `observations` contract, passing in various parameters related to the current state of the pool, and returns the result.
 
-19. The remaining functions, `increaseObservationCardinalityNext` and `initialize`, handle the initialization and updating of the pool's observation data, which is used for various calculations and state tracking.
+#### function increaseObservationCardinalityNext() and initialize():
 
-Overall, this code is responsible for managing the core functionality of the Uniswap V3 pool contract, including calculating various cumulative values, retrieving token balances, and initializing the pool's state.
+```bash
+ function increaseObservationCardinalityNext(uint16 observationCardinalityNext)
+        external
+        override
+        lock
+        noDelegateCall
+    {
+        uint16 observationCardinalityNextOld = slot0.observationCardinalityNext; // for the event
+        uint16 observationCardinalityNextNew =
+            observations.grow(observationCardinalityNextOld, observationCardinalityNext);
+        slot0.observationCardinalityNext = observationCardinalityNextNew;
+        if (observationCardinalityNextOld != observationCardinalityNextNew)
+            emit IncreaseObservationCardinalityNext(observationCardinalityNextOld, observationCardinalityNextNew);
+    }
 
-This is the `_modifyPosition` function, which is responsible for making changes to a position in the Uniswap V3 pool. Let's go through it step by step:
 
-1. `struct ModifyPositionParams {`: This defines a data structure that holds the details of the position change, including the owner's address, the lower and upper ticks of the position, and the change in liquidity.
+    function initialize(uint160 sqrtPriceX96) external override {
+        require(slot0.sqrtPriceX96 == 0, 'AI');
 
-2. `function _modifyPosition(ModifyPositionParams memory params) private noDelegateCall returns (Position.Info storage position, int256 amount0, int256 amount1) {`: This is the function definition for `_modifyPosition`. It takes a `ModifyPositionParams` struct as input and returns three values: a storage pointer to the updated position, the amount of token0 owed to the pool, and the amount of token1 owed to the pool.
+        int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
 
-3. `checkTicks(params.tickLower, params.tickUpper);`: This line calls the `checkTicks` function to ensure that the provided `tickLower` and `tickUpper` values are valid.
+        (uint16 cardinality, uint16 cardinalityNext) = observations.initialize(_blockTimestamp());
 
-4. `Slot0 memory _slot0 = slot0; // SLOAD for gas optimization`: This line retrieves the current `Slot0` struct (which contains important pool state information) and stores it in a local variable `_slot0` for gas optimization.
+        slot0 = Slot0({
+            sqrtPriceX96: sqrtPriceX96,
+            tick: tick,
+            observationIndex: 0,
+            observationCardinality: cardinality,
+            observationCardinalityNext: cardinalityNext,
+            feeProtocol: 0,
+            unlocked: true
+        });
 
-5. `position = _updatePosition(params.owner, params.tickLower, params.tickUpper, params.liquidityDelta, _slot0.tick);`: This line calls the `_updatePosition` function to update the position with the provided parameters. The result is stored in the `position` variable.
+        emit Initialize(sqrtPriceX96, tick);
+    }
+```
 
-6. `if (params.liquidityDelta != 0) {`: This block of code is executed if there is a non-zero change in liquidity.
+The remaining functions, `increaseObservationCardinalityNext` and `initialize`, handle the initialization and updating of the pool's observation data, which is used for various calculations and state tracking.
 
-7. `if (_slot0.tick < params.tickLower) {`: This condition checks if the current pool tick is below the lower tick of the position. In this case, the pool needs more token0 (as it's becoming more valuable) and the user must provide it.
+#### function modifyPosition():
 
-   - The amount of token0 required is calculated using the `SqrtPriceMath.getAmount0Delta` function.
+This is the `_modifyPosition` function, which is responsible for making changes to a position in the Uniswap V3 pool.
 
-8. `else if (_slot0.tick < params.tickUpper) {`: This condition checks if the current pool tick is inside the range of the position.
+`struct ModifyPositionParams {`: This defines a data structure that holds the details of the position change, including the owner's address, the lower and upper ticks of the position, and the change in liquidity.
 
-   - An observation is written to the `observations` contract using the `observations.write` function.
-   - The amounts of token0 and token1 owed to the pool are calculated using the `SqrtPriceMath.getAmount0Delta` and `SqrtPriceMath.getAmount1Delta` functions, respectively.
-   - The pool's liquidity is updated using the `LiquidityMath.addDelta` function.
+`function _modifyPosition(ModifyPositionParams memory params) private noDelegateCall returns (Position.Info storage position, int256 amount0, int256 amount1) {`: This is the function definition for `_modifyPosition`. It takes a `ModifyPositionParams` struct as input and returns three values: a storage pointer to the updated position, the amount of token0 owed to the pool, and the amount of token1 owed to the pool.
 
-9. `else {`: This condition checks if the current pool tick is above the upper tick of the position. In this case, the pool needs more token1 (as it's becoming more valuable) and the user must provide it.
-   - The amount of token1 required is calculated using the `SqrtPriceMath.getAmount1Delta` function.
+`checkTicks(params.tickLower, params.tickUpper);`: This line calls the `checkTicks` function to ensure that the provided `tickLower` and `tickUpper` values are valid.
+
+`Slot0 memory _slot0 = slot0; // SLOAD for gas optimization`: This line retrieves the current `Slot0` struct (which contains important pool state information) and stores it in a local variable `_slot0` for gas optimization.
+
+`position = _updatePosition(params.owner, params.tickLower, params.tickUpper, params.liquidityDelta, _slot0.tick);`: This line calls the `_updatePosition` function to update the position with the provided parameters. The result is stored in the `position` variable.
+
+`if (params.liquidityDelta != 0) {`: This block of code is executed if there is a non-zero change in liquidity.
+
+`if (_slot0.tick < params.tickLower) {`: This condition checks if the current pool tick is below the lower tick of the position. In this case, the pool needs more token0 (as it's becoming more valuable) and the user must provide it.
+
+- The amount of token0 required is calculated using the `SqrtPriceMath.getAmount0Delta` function.
+
+`else if (_slot0.tick < params.tickUpper) {`: This condition checks if the current pool tick is inside the range of the position.
+
+- An observation is written to the `observations` contract using the `observations.write` function.
+- The amounts of token0 and token1 owed to the pool are calculated using the `SqrtPriceMath.getAmount0Delta` and `SqrtPriceMath.getAmount1Delta` functions, respectively.
+- The pool's liquidity is updated using the `LiquidityMath.addDelta` function.
+
+`else {`: This condition checks if the current pool tick is above the upper tick of the position. In this case, the pool needs more token1 (as it's becoming more valuable) and the user must provide it.
+
+- The amount of token1 required is calculated using the `SqrtPriceMath.getAmount1Delta` function.
 
 In summary, this function is responsible for updating a position in the Uniswap V3 pool, including calculating the amounts of token0 and token1 owed to the pool based on the change in liquidity and the current pool state.
 
@@ -1072,37 +1263,36 @@ function _updatePosition(
 
 ```
 
-This function, `_updatePosition`, is responsible for updating a position in the Uniswap V3 pool. Let's go through it step by step:
+This function, `_updatePosition`, is responsible for updating a position in the Uniswap V3 pool.
 
-1. `function _updatePosition(address owner, int24 tickLower, int24 tickUpper, int128 liquidityDelta, int24 tick) private returns (Position.Info storage position) {`: This is the function definition. It takes the following parameters:
+`function _updatePosition(address owner, int24 tickLower, int24 tickUpper, int128 liquidityDelta, int24 tick) private returns (Position.Info storage position) {`: This is the function definition. It takes the following parameters:
 
-   - `owner`: The address of the owner of the position
-   - `tickLower`: The lower tick of the position
-   - `tickUpper`: The upper tick of the position
-   - `liquidityDelta`: The change in liquidity for the position
-   - `tick`: The current pool tick
+- `owner`: The address of the owner of the position
+- `tickLower`: The lower tick of the position
+- `tickUpper`: The upper tick of the position
+- `liquidityDelta`: The change in liquidity for the position
+- `tick`: The current pool tick
 
-2. `position = positions.get(owner, tickLower, tickUpper);`: This line retrieves the position information from the `positions` mapping, using the provided `owner`, `tickLower`, and `tickUpper` values.
+`position = positions.get(owner, tickLower, tickUpper);`: This line retrieves the position information from the `positions` mapping, using the provided `owner`, `tickLower`, and `tickUpper` values.
 
-3. `uint256 _feeGrowthGlobal0X128 = feeGrowthGlobal0X128; // SLOAD for gas optimization`: This line loads the `feeGrowthGlobal0X128` and `feeGrowthGlobal1X128` state variables into local variables for gas optimization.
+`uint256 _feeGrowthGlobal0X128 = feeGrowthGlobal0X128; // SLOAD for gas optimization`: This line loads the `feeGrowthGlobal0X128` and `feeGrowthGlobal1X128` state variables into local variables for gas optimization.
 
-4. `if (liquidityDelta != 0) {`: This block of code is executed if there is a non-zero change in liquidity.
+`if (liquidityDelta != 0) {`: This block of code is executed if there is a non-zero change in liquidity.
 
-   - `uint32 time = _blockTimestamp();`: This line retrieves the current block timestamp.
-   - `(int56 tickCumulative, uint160 secondsPerLiquidityCumulativeX128) = observations.observeSingle(time, 0, slot0.tick, slot0.observationIndex, liquidity, slot0.observationCardinality);`: This line calls the `observeSingle` function of the `observations` contract to retrieve certain cumulative values.
-   - `flippedLower = ticks.update(tickLower, tick, liquidityDelta, _feeGrowthGlobal0X128, _feeGrowthGlobal1X128, secondsPerLiquidityCumulativeX128, tickCumulative, time, false, maxLiquidityPerTick);`: This line calls the `update` function of the `ticks` contract to update the lower tick, passing in various parameters including the liquidity delta and the cumulative values retrieved earlier.
-   - `flippedUpper = ticks.update(tickUpper, tick, liquidityDelta, _feeGrowthGlobal0X128, _feeGrowthGlobal1X128, secondsPerLiquidityCumulativeX128, tickCumulative, time, true, maxLiquidityPerTick);`: This line is similar to the previous one, but it updates the upper tick.
-   - `if (flippedLower) { tickBitmap.flipTick(tickLower, tickSpacing); }`: If the lower tick was flipped, this line updates the `tickBitmap`.
-   - `if (flippedUpper) { tickBitmap.flipTick(tickUpper, tickSpacing); }`: If the upper tick was flipped, this line updates the `tickBitmap`.
+- `uint32 time = _blockTimestamp();`: This line retrieves the current block timestamp.
+- `(int56 tickCumulative, uint160 secondsPerLiquidityCumulativeX128) = observations.observeSingle(time, 0, slot0.tick, slot0.observationIndex, liquidity, slot0.observationCardinality);`: This line calls the `observeSingle` function of the `observations` contract to retrieve certain cumulative values.
+- `flippedLower = ticks.update(tickLower, tick, liquidityDelta, _feeGrowthGlobal0X128, _feeGrowthGlobal1X128, secondsPerLiquidityCumulativeX128, tickCumulative, time, false, maxLiquidityPerTick);`: This line calls the `update` function of the `ticks` contract to update the lower tick, passing in various parameters including the liquidity delta and the cumulative values retrieved earlier.
+- `flippedUpper = ticks.update(tickUpper, tick, liquidityDelta, _feeGrowthGlobal0X128, _feeGrowthGlobal1X128, secondsPerLiquidityCumulativeX128, tickCumulative, time, true, maxLiquidityPerTick);`: This line is similar to the previous one, but it updates the upper tick.
+- `if (flippedLower) { tickBitmap.flipTick(tickLower, tickSpacing); }`: If the lower tick was flipped, this line updates the `tickBitmap`.
+- `if (flippedUpper) { tickBitmap.flipTick(tickUpper, tickSpacing); }`: If the upper tick was flipped, this line updates the `tickBitmap`.
 
-5. `(uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128) = ticks.getFeeGrowthInside(tickLower, tickUpper, tick, *feeGrowthGlobal0X128, *feeGrowthGlobal1X128);`: This line calls the `getFeeGrowthInside` function of the `ticks` contract to retrieve the fee growth inside the position's tick range.
+`(uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128) = ticks.getFeeGrowthInside(tickLower, tickUpper, tick, *feeGrowthGlobal0X128, *feeGrowthGlobal1X128);`: This line calls the `getFeeGrowthInside` function of the `ticks` contract to retrieve the fee growth inside the position's tick range.
 
-6. `position.update(liquidityDelta, feeGrowthInside0X128, feeGrowthInside1X128);`: This line updates the position's liquidity, fee growth in token0, and fee growth in token1.
+`position.update(liquidityDelta, feeGrowthInside0X128, feeGrowthInside1X128);`: This line updates the position's liquidity, fee growth in token0, and fee growth in token1.
 
-7. `if (liquidityDelta < 0) { ... }`: This block of code is executed if the liquidity delta is negative (i.e., the liquidity is being removed from the position).
-   - If the lower or upper tick was flipped, the `ticks.clear` function is called to clear any tick data that is no longer needed.
+`if (liquidityDelta < 0) { ... }`: This block of code is executed if the liquidity delta is negative (i.e., the liquidity is being removed from the position).
 
-In summary, this function is responsible for updating a position in the Uniswap V3 pool, including updating the tick data, the fee growth inside the position's tick range, and the position's liquidity and fee growth values.
+- If the lower or upper tick was flipped, the `ticks.clear` function is called to clear any tick data that is no longer needed.
 
 #### 2.4 mint():
 
@@ -1141,35 +1331,33 @@ In summary, this function is responsible for updating a position in the Uniswap 
 
 ```
 
-This function, `mint`, is responsible for minting a new position in the Uniswap V3 pool. Let's go through it step by step:
+`function mint(address recipient, int24 tickLower, int24 tickUpper, uint128 amount, bytes calldata data) external override lock returns (uint256 amount0, uint256 amount1) {`: This is the function definition. It takes the following parameters:
 
-1. `function mint(address recipient, int24 tickLower, int24 tickUpper, uint128 amount, bytes calldata data) external override lock returns (uint256 amount0, uint256 amount1) {`: This is the function definition. It takes the following parameters:
+- `recipient`: The address of the recipient of the minted position
+- `tickLower`: The lower tick of the position
+- `tickUpper`: The upper tick of the position
+- `amount`: The amount of liquidity to be minted
+- `data`: An arbitrary data field that can be used by the caller
 
-   - `recipient`: The address of the recipient of the minted position
-   - `tickLower`: The lower tick of the position
-   - `tickUpper`: The upper tick of the position
-   - `amount`: The amount of liquidity to be minted
-   - `data`: An arbitrary data field that can be used by the caller
+`require(amount > 0);`: This line ensures that the amount of liquidity to be minted is greater than 0.
 
-2. `require(amount > 0);`: This line ensures that the amount of liquidity to be minted is greater than 0.
+`(, int256 amount0Int, int256 amount1Int) = _modifyPosition(ModifyPositionParams({ owner: recipient, tickLower: tickLower, tickUpper: tickUpper, liquidityDelta: int256(amount).toInt128() }));`: This line calls the `_modifyPosition` function, passing in a `ModifyPositionParams` struct with the provided parameters. The function returns the amount of token0 and token1 owed to the pool, which are stored in `amount0Int` and `amount1Int`, respectively.
 
-3. `(, int256 amount0Int, int256 amount1Int) = _modifyPosition(ModifyPositionParams({ owner: recipient, tickLower: tickLower, tickUpper: tickUpper, liquidityDelta: int256(amount).toInt128() }));`: This line calls the `_modifyPosition` function, passing in a `ModifyPositionParams` struct with the provided parameters. The function returns the amount of token0 and token1 owed to the pool, which are stored in `amount0Int` and `amount1Int`, respectively.
+`amount0 = uint256(amount0Int);`: This line converts the `amount0Int` value (an `int256`) to a `uint256`.
+`amount1 = uint256(amount1Int);`: This line converts the `amount1Int` value (an `int256`) to a `uint256`.
 
-4. `amount0 = uint256(amount0Int);`: This line converts the `amount0Int` value (an `int256`) to a `uint256`.
-5. `amount1 = uint256(amount1Int);`: This line converts the `amount1Int` value (an `int256`) to a `uint256`.
+`uint256 balance0Before;`: This line declares a local variable `balance0Before` to store the pool's balance of token0 before the callback.
+`uint256 balance1Before;`: This line declares a local variable `balance1Before` to store the pool's balance of token1 before the callback.
 
-6. `uint256 balance0Before;`: This line declares a local variable `balance0Before` to store the pool's balance of token0 before the callback.
-7. `uint256 balance1Before;`: This line declares a local variable `balance1Before` to store the pool's balance of token1 before the callback.
+`if (amount0 > 0) balance0Before = balance0();`: If the amount of token0 owed to the pool is greater than 0, this line retrieves the current balance of token0 and stores it in `balance0Before`.
+`if (amount1 > 0) balance1Before = balance1();`: If the amount of token1 owed to the pool is greater than 0, this line retrieves the current balance of token1 and stores it in `balance1Before`.
 
-8. `if (amount0 > 0) balance0Before = balance0();`: If the amount of token0 owed to the pool is greater than 0, this line retrieves the current balance of token0 and stores it in `balance0Before`.
-9. `if (amount1 > 0) balance1Before = balance1();`: If the amount of token1 owed to the pool is greater than 0, this line retrieves the current balance of token1 and stores it in `balance1Before`.
+`IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, data);`: This line calls the `uniswapV3MintCallback` function on the contract that called the `mint` function (identified by `msg.sender`). This callback allows the caller to provide the required amounts of token0 and token1 to the pool.
 
-10. `IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, data);`: This line calls the `uniswapV3MintCallback` function on the contract that called the `mint` function (identified by `msg.sender`). This callback allows the caller to provide the required amounts of token0 and token1 to the pool.
+`if (amount0 > 0) require(balance0Before.add(amount0) <= balance0(), 'M0');`: If the amount of token0 owed to the pool is greater than 0, this line checks that the current balance of token0 is at least the previous balance plus the amount owed. If this condition is not met, it reverts the transaction with the error message `'M0'`.
+`if (amount1 > 0) require(balance1Before.add(amount1) <= balance1(), 'M1');`: Similarly, if the amount of token1 owed to the pool is greater than 0, this line checks that the current balance of token1 is at least the previous balance plus the amount owed. If this condition is not met, it reverts the transaction with the error message `'M1'`.
 
-11. `if (amount0 > 0) require(balance0Before.add(amount0) <= balance0(), 'M0');`: If the amount of token0 owed to the pool is greater than 0, this line checks that the current balance of token0 is at least the previous balance plus the amount owed. If this condition is not met, it reverts the transaction with the error message `'M0'`.
-12. `if (amount1 > 0) require(balance1Before.add(amount1) <= balance1(), 'M1');`: Similarly, if the amount of token1 owed to the pool is greater than 0, this line checks that the current balance of token1 is at least the previous balance plus the amount owed. If this condition is not met, it reverts the transaction with the error message `'M1'`.
-
-13. `emit Mint(msg.sender, recipient, tickLower, tickUpper, amount, amount0, amount1);`: This line emits a `Mint` event with the relevant details of the minted position.
+`emit Mint(msg.sender, recipient, tickLower, tickUpper, amount, amount0, amount1);`: This line emits a `Mint` event with the relevant details of the minted position.
 
 In summary, this function is responsible for minting a new position in the Uniswap V3 pool. It calls the `_modifyPosition` function to update the position, retrieves the current token balances, calls the `uniswapV3MintCallback` function to allow the caller to provide the required token amounts, and then checks that the token balances have been updated correctly before emitting a `Mint` event.
 

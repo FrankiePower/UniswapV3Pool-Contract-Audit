@@ -113,7 +113,7 @@ This contract defines the interface for a Uniswap V3 pool. It provides the neces
     Owner Actions: Functions for the pool owner to perform administrative tasks, like setting fees and collecting protocol fees.
     Events: Events emitted by the pool to notify users of significant changes, like trades and liquidity changes.
 
-#### IUniswapV3PoolDeployer.sol Explained
+#### IUniswapV3PoolDeployer.sol
 
 This interface, IUniswapV3PoolDeployer, defines a contract that is responsible for deploying Uniswap V3 pools. Its primary purpose is to provide the necessary parameters for pool initialization without requiring them to be hardcoded in the pool contract itself.
 
@@ -139,7 +139,7 @@ How it Works:
 
 By using this interface, Uniswap V3 achieves a high degree of flexibility and security in pool deployment while maintaining efficient and predictable behavior.
 
-#### IUniswapV3Factory.sol Explained
+#### IUniswapV3Factory.sol
 
 This interface, IUniswapV3Factory, defines the core functions and events of a Uniswap V3 factory contract. It's responsible for creating and managing Uniswap V3 pools.
 
@@ -175,7 +175,7 @@ Facilitating the creation of new pools.
 Managing the fee structure.
 Ensuring the security and flexibility of the protocol.
 
-#### IERC20Minimal.sol Explained
+#### IERC20Minimal.sol
 
 This interface, IERC20Minimal, defines a simplified version of the full ERC20 token standard, specifically tailored for Uniswap V3's needs. It includes the essential functions for interacting with ERC20 tokens within the protocol.
 
@@ -194,7 +194,7 @@ Events:
 
 The IERC20Minimal interface provides a streamlined approach to interacting with ERC20 tokens within the Uniswap V3 ecosystem. It simplifies the token transfer and approval processes, making the protocol more efficient and secure.
 
-#### IUniswapV3MintCallback.sol Explained
+#### IUniswapV3MintCallback.sol
 
 This interface, IUniswapV3MintCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's mint function.
 
@@ -222,7 +222,7 @@ How it Works:
 
 By using this callback mechanism, Uniswap V3 ensures the integrity of the liquidity pool and protects against potential exploits.
 
-#### IUniswapV3SwapCallback.sol Explained
+#### IUniswapV3SwapCallback.sol
 
 This interface, IUniswapV3SwapCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's swap function.
 
@@ -249,7 +249,7 @@ How it Works:
 
 By using this callback mechanism, Uniswap V3 ensures the integrity of the swap process and protects the pool from potential manipulation.
 
-#### IUniswapV3FlashCallback.sol Explained
+#### IUniswapV3FlashCallback.sol
 
 This interface, IUniswapV3FlashCallback, defines a callback function that must be implemented by any contract that interacts with the Uniswap V3 pool's flash function.
 
@@ -458,7 +458,7 @@ Limitations:
 
 Overall, FixedPoint128.sol provides a basic foundation for working with fixed-point numbers in Solidity. However, it requires further development or integration with a more complete fixed-point library for practical use.
 
-#### TransferHelper.sol Explained
+#### TransferHelper.sol
 
 This library, TransferHelper.sol, provides a secure and reliable way to transfer ERC20 tokens within Solidity contracts. Here's a breakdown of its functionality:
 
@@ -485,7 +485,7 @@ Limitations:
 
 Overall, TransferHelper.sol offers a secure and efficient way to transfer ERC20 tokens in Solidity contracts. However, it's important to consider potential limitations and ensure the underlying token contract adheres to the ERC20 standard.
 
-#### TickMath.sol Explained
+#### TickMath.sol
 
 TickMath.sol is a crucial library for Uniswap V3, providing functions to convert between tick values and sqrt price values.
 Key Concepts:
@@ -529,7 +529,7 @@ Importance in Uniswap V3:
 
 By providing these essential functions, TickMath.sol plays a vital role in the core mechanics of Uniswap V3.
 
-#### LiquidityMath.sol Explained
+#### LiquidityMath.sol
 
 LiquidityMath.sol is a simple library within Uniswap V3 that provides a core function for safely adding or subtracting liquidity from a position.
 Key Function: addDelta
@@ -552,7 +552,7 @@ In Summary:
 
 The LiquidityMath.sol library is a fundamental building block for Uniswap V3, providing a simple yet crucial function for managing liquidity within positions. By incorporating safety checks, it helps maintain the integrity of the protocol and protects users' funds.
 
-#### SqrtPriceMath.sol Explained
+#### SqrtPriceMath.sol
 
 This library, SqrtPriceMath.sol, provides essential mathematical functions for calculating price changes and liquidity deltas within a Uniswap V3-like automated market maker (AMM). It operates on sqrtPriceX96 values, which are fixed-point numbers representing the square root of the price ratio between two tokens.
 
@@ -656,83 +656,173 @@ This library is essential for the core functionality of Uniswap V3. It ensures a
 
 These imports provide the necessary interfaces, libraries, and utility functions required for the implementation of the Uniswap V3 pool contract. They cover a wide range of functionalities, from token interactions and mathematical operations to specialized features like tick management and oracle integration.
 
-#### contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
+#### Contract UniswapV3Pool is ........
 
-This line declares a new Solidity contract named UniswapV3Pool that inherits from the IUniswapV3Pool interface and the NoDelegateCall contract.
-The IUniswapV3Pool interface defines the core functions and events of the Uniswap V3 pool contract.
-The NoDelegateCall contract is used to prevent the use of delegate call, a feature in Solidity that can be used to introduce security vulnerabilities.
+```bash
+contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
+    using LowGasSafeMath for uint256;
+    using LowGasSafeMath for int256;
+    using SafeCast for uint256;
+    using SafeCast for int256;
+    using Tick for mapping(int24 => Tick.Info);
+    using TickBitmap for mapping(int16 => uint256);
+    using Position for mapping(bytes32 => Position.Info);
+    using Position for Position.Info;
+    using Oracle for Oracle.Observation[65535];
 
-using LowGasSafeMath for uint256;
+    /// @inheritdoc IUniswapV3PoolImmutables
+    address public immutable override factory;
+    /// @inheritdoc IUniswapV3PoolImmutables
+    address public immutable override token0;
+    /// @inheritdoc IUniswapV3PoolImmutables
+    address public immutable override token1;
+    /// @inheritdoc IUniswapV3PoolImmutables
+    uint24 public immutable override fee;
 
-This line instructs the Solidity compiler to use the LowGasSafeMath library for all uint256 operations within the contract.
-The LowGasSafeMath library provides gas-optimized mathematical operations with overflow/underflow checks.
+    /// @inheritdoc IUniswapV3PoolImmutables
+    int24 public immutable override tickSpacing;
 
-using LowGasSafeMath for int256;
+    /// @inheritdoc IUniswapV3PoolImmutables
+    uint128 public immutable override maxLiquidityPerTick;
+```
+
+This line declares a new Solidity contract named UniswapV3Pool that inherits from the IUniswapV3Pool interface and the NoDelegateCall contract. The IUniswapV3Pool interface defines the core functions and events of the Uniswap V3 pool contract.The NoDelegateCall contract is used to prevent the use of delegate call, a feature in Solidity that can be used to introduce security vulnerabilities.
+
+# using LowGasSafeMath for uint256;
+
+This line instructs the Solidity compiler to use the LowGasSafeMath library for all uint256 operations within the contract.The LowGasSafeMath library provides gas-optimized mathematical operations with overflow/underflow checks.
+
+# using LowGasSafeMath for int256;
 
 Similar to the previous line, this line instructs the use of LowGasSafeMath for all int256 operations.
 
-using SafeCast for uint256;
+# using SafeCast for uint256;
 
 This line allows the use of the SafeCast library's functions for safely casting uint256 values.
 
-using SafeCast for int256;
+# using SafeCast for int256;
 
 This line allows the use of the SafeCast library's functions for safely casting int256 values.
 
-using Tick for mapping(int24 => Tick.Info);
+# using Tick for mapping(int24 => Tick.Info);
 
 This line associates the Tick library with the mapping of int24 (tick indexes) to Tick.Info structs.
 The Tick library provides functions and utilities for managing tick-related data.
 
-using TickBitmap for mapping(int16 => uint256);
+# using TickBitmap for mapping(int16 => uint256);
 
 This line associates the TickBitmap library with the mapping of int16 (tick index word indexes) to uint256 bitmaps.
 The TickBitmap library helps with efficient storage and manipulation of active ticks.
 
-using Position for mapping(bytes32 => Position.Info);
+# using Position for mapping(bytes32 => Position.Info);
 
 This line associates the Position library with the mapping of bytes32 (position IDs) to Position.Info structs.
 The Position library provides functions for managing liquidity positions.
 
-using Position for Position.Info;
+# using Position for Position.Info;
 
 This line associates the Position library directly with the Position.Info struct.
 
-using Oracle for Oracle.Observation[65535];
+# using Oracle for Oracle.Observation[65535];
 
 This line associates the Oracle library with the Oracle.Observation array of size 65,535.
 The Oracle library contains functions for working with the Uniswap V3 oracle.
 
-/// @inheritdoc IUniswapV3PoolImmutables
+# State Variabes
+
+```bash
 address public immutable override factory;
+```
 
-This line declares an immutable (non-modifiable) public state variable factory that inherits the documentation from the IUniswapV3PoolImmutables interface.
-The factory variable stores the address of the Uniswap V3 factory contract.
+This line declares an immutable (non-modifiable) public state variable factory that inherits the documentation from the IUniswapV3PoolImmutables interface.The factory variable stores the address of the Uniswap V3 factory contract.
 
-/// @inheritdoc IUniswapV3PoolImmutables
+```bash
 address public immutable override token0;
 address public immutable override token1;
+```
 
 These lines declare immutable public state variables token0 and token1 that store the addresses of the two tokens in the pool.
 
-/// @inheritdoc IUniswapV3PoolImmutables
+```bash
 uint24 public immutable override fee;
+```
 
 This line declares an immutable public state variable fee that stores the fee tier of the pool.
 
-/// @inheritdoc IUniswapV3PoolImmutables
+```bash
 int24 public immutable override tickSpacing;
+```
 
 This line declares an immutable public state variable tickSpacing that stores the tick spacing of the pool.
 
-/// @inheritdoc IUniswapV3PoolImmutables
+```bash
 uint128 public immutable override maxLiquidityPerTick;
+```
 
 This line declares an immutable public state variable maxLiquidityPerTick that stores the maximum amount of liquidity that can be added to a single tick.
 
-In summary, this code block sets up the contract structure, imports the necessary libraries and interfaces, and declares the immutable state variables that define the key characteristics of the Uniswap V3 pool. These variables are set during the pool deployment and cannot be changed afterwards.
+```bash
+struct Slot0 {
+        // the current price
+        uint160 sqrtPriceX96;
+        // the current tick
+        int24 tick;
+        // the most-recently updated index of the observations array
+        uint16 observationIndex;
+        // the current maximum number of observations that are being stored
+        uint16 observationCardinality;
+        // the next maximum number of observations to store, triggered in observations.write
+        uint16 observationCardinalityNext;
+        // the current protocol fee as a percentage of the swap fee taken on withdrawal
+        // represented as an integer denominator (1/x)%
+        uint8 feeProtocol;
+        // whether the pool is locked
+        bool unlocked;
+    }
+    /// @inheritdoc IUniswapV3PoolState
+    Slot0 public override slot0;
 
-Certainly, let's go through the code block for the `Slot0` struct and the associated state variables:
+    /// @inheritdoc IUniswapV3PoolState
+    uint256 public override feeGrowthGlobal0X128;
+    /// @inheritdoc IUniswapV3PoolState
+    uint256 public override feeGrowthGlobal1X128;
+
+    // accumulated protocol fees in token0/token1 units
+    struct ProtocolFees {
+        uint128 token0;
+        uint128 token1;
+    }
+    /// @inheritdoc IUniswapV3PoolState
+    ProtocolFees public override protocolFees;
+
+    /// @inheritdoc IUniswapV3PoolState
+    uint128 public override liquidity;
+
+    /// @inheritdoc IUniswapV3PoolState
+    mapping(int24 => Tick.Info) public override ticks;
+    /// @inheritdoc IUniswapV3PoolState
+    mapping(int16 => uint256) public override tickBitmap;
+    /// @inheritdoc IUniswapV3PoolState
+    mapping(bytes32 => Position.Info) public override positions;
+    /// @inheritdoc IUniswapV3PoolState
+    Oracle.Observation[65535] public override observations;
+
+    /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
+    /// to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
+    /// we use balance checks to determine the payment status of interactions such as mint, swap and flash.
+    modifier lock() {
+        require(slot0.unlocked, 'LOK');
+        slot0.unlocked = false;
+        _;
+        slot0.unlocked = true;
+    }
+
+    /// @dev Prevents calling a function from anyone except the address returned by IUniswapV3Factory#owner()
+    modifier onlyFactoryOwner() {
+        require(msg.sender == IUniswapV3Factory(factory).owner());
+        _;
+    }
+```
 
 1. `struct Slot0 {`
 
